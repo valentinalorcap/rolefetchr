@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Job, Source } from "@prisma/client";
+import type { Source } from "@prisma/client";
 import {
   Card,
   CardContent,
@@ -8,6 +8,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScoreBadge } from "@/components/score-badge";
+import type { JobWithScore } from "@/lib/jobs";
 import { relativeTime, snippet } from "@/lib/format";
 
 const SOURCE_LABEL: Record<Source, string> = {
@@ -17,7 +19,7 @@ const SOURCE_LABEL: Record<Source, string> = {
   HACKERNEWS: "Hacker News",
 };
 
-export function JobCard({ job }: { job: Job }) {
+export function JobCard({ job }: { job: JobWithScore }) {
   return (
     <Card className="transition-colors hover:border-foreground/20">
       <CardHeader>
@@ -27,9 +29,10 @@ export function JobCard({ job }: { job: Job }) {
               {job.title}
             </Link>
           </CardTitle>
-          <Badge variant="secondary" className="shrink-0">
-            {SOURCE_LABEL[job.source]}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {job.score ? <ScoreBadge score={job.score.score} /> : null}
+            <Badge variant="secondary">{SOURCE_LABEL[job.source]}</Badge>
+          </div>
         </div>
         <div className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{job.company}</span>
