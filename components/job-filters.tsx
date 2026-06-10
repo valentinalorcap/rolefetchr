@@ -52,9 +52,24 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+        Min score
+        <select
+          name="minScore"
+          defaultValue={filters.minScore?.toString() ?? ""}
+          className={selectClass}
+        >
+          <option value="">Any score</option>
+          <option value="70">70+</option>
+          <option value="50">50+</option>
+          <option value="30">30+</option>
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
         Sort
         <select name="sort" defaultValue={filters.sort} className={selectClass}>
           <option value="recent">Newest</option>
+          <option value="score">Best match</option>
           <option value="title">Title A–Z</option>
         </select>
       </label>

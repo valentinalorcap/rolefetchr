@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Source } from "@prisma/client";
 import { getJobById } from "@/lib/jobs";
 import { Badge } from "@/components/ui/badge";
+import { ScoreBadge } from "@/components/score-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { relativeTime, stripHtml } from "@/lib/format";
@@ -60,6 +61,54 @@ export default async function JobDetail({
             </Badge>
           ))}
         </div>
+      ) : null}
+
+      {job.score ? (
+        <section className="mt-6 rounded-lg border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <ScoreBadge score={job.score.score} size="lg" />
+            <h2 className="text-sm font-medium text-muted-foreground">
+              CV fit score
+            </h2>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed">{job.score.reasoning}</p>
+
+          {job.score.matchedSkills.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Matched
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {job.score.matchedSkills.map((s) => (
+                  <Badge
+                    key={s}
+                    variant="outline"
+                    className="border-emerald-500/30 font-normal text-emerald-300"
+                  >
+                    {s}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {job.score.gaps.length > 0 ? (
+            <div className="mt-3">
+              <p className="text-xs font-medium text-muted-foreground">Gaps</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {job.score.gaps.map((g) => (
+                  <Badge
+                    key={g}
+                    variant="outline"
+                    className="border-rose-500/30 font-normal text-rose-300"
+                  >
+                    {g}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
       ) : null}
 
       <a

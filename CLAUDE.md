@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Current state
-Phase 0 (scaffold) in progress. Next.js 15 app scaffolded, Prisma schema written, client generated. Still pending in Phase 0 (need Valentina / external accounts): create the GitHub repo, create the Neon DB and set `DATABASE_URL`, run the first `npm run db:migrate`, and connect Vercel. Then on to Phase 1 (ingestion) per `PLAN.md`.
+Phases 0–3 done (scaffold, ingestion, browsing UI, AI scoring). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme). Next up: Phase 4 (saved/applied/not-interested actions) per `PLAN.md`.
 
 **Environment gotcha:** the machine's default Node is v16 (too old for Next 15). This project needs Node 22 — pinned in `.nvmrc`. Every shell must `nvm use` (or prepend `~/.nvm/versions/node/v22.22.2/bin` to PATH) before running npm/npx, or builds fail cryptically.
 
@@ -24,7 +24,7 @@ She built Klara (klara-de-huevo.vercel.app) already with the same stack. This pr
 - Tailwind + shadcn/ui
 - Neon Postgres + Prisma
 - Anthropic API (Claude Sonnet 4.6) with prompt caching
-- Vercel deploy + Vercel Cron (or GitHub Actions if Vercel free tier doesn't allow)
+- Vercel deploy + GitHub Actions cron (Vercel Hobby caps crons at once/day)
 - Resend for email digest
 
 ## Where things live
@@ -51,7 +51,7 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 **Ingestion → scoring → display are separate, async stages connected through Postgres:**
 - **Sources are adapters.** Each lives in `lib/sources/<name>.ts` and exposes fetch + parse to a common `Job` shape. Adding a source = one new adapter, no changes elsewhere. RemoteOK/Remotive are JSON APIs (need custom `User-Agent`); WeWorkRemotely is RSS; Hacker News means parsing the monthly "Who's hiring" thread.
 - **`lib/ingest.ts`** runs adapters and dedups on the unique `(source, externalId)`; a secondary `title+company` hash guards against the same job appearing across sources.
-- **Two independent crons**, both authed via `CRON_SECRET`: `app/api/cron/ingest/route.ts` (daily) fills the DB; `app/api/cron/score/route.ts` (hourly) picks up jobs with no `JobScore` and scores a small batch (5–10/run) to cap Anthropic cost. Scoring deliberately lags ingestion — jobs exist unscored before the scorer catches up. A third daily cron sends the email digest.
+- **Two independent crons**, both authed via `CRON_SECRET` and **triggered by GitHub Actions** (`.github/workflows/cron.yml`), not Vercel — the Hobby plan caps crons at once/day, which broke the hourly score schedule. The workflow hits the deployed routes on a schedule: `app/api/cron/ingest/route.ts` (daily) fills the DB; `app/api/cron/score/route.ts` (hourly) picks up jobs with no `JobScore` and scores a small batch to cap Anthropic cost. Scoring deliberately lags ingestion — jobs exist unscored before the scorer catches up. (A digest cron will be added in Phase 6.)
 - **Scoring (`lib/scorer.ts`)** is the differentiator. `cv-context.md` is loaded as a system prompt with `cache_control: ephemeral` so the CV (the large, stable block) is cached and not re-billed per job. Output is structured via a Zod schema (`score 0-100`, `reasoning`, `matchedSkills`, `gaps`). The scoring rubric (stack/location/seniority/domain weights, Spain-EOR eligibility) lives in the prompt in `PLAN.md` Phase 3 — tune there.
 
 **Data model** (`Job` is the hub; see full Prisma schema in `PLAN.md` Phase 0): `Job` 1:1 optional `JobScore`, `Job` 1:1 optional `JobAction` (SAVED/APPLIED/NOT_INTERESTED/INTERVIEW/REJECTED — drives the saved/applied tracker UI), plus `IngestionRun` for per-run logging. Both relations cascade-delete with the job.
@@ -69,3 +69,6 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 - **Prisma pinned to v6**, not v7. Prisma 7 drops `url` from the schema datasource and requires a runtime driver adapter — extra complexity and newness for an MVP. v6 keeps the classic `url = env("DATABASE_URL")` + `import { PrismaClient } from "@prisma/client"` flow the PLAN assumes. Revisit v7 + Neon serverless adapter post-v1 if serverless connection limits bite.
 - **Classic `prisma-client-js` generator** (output to `node_modules/@prisma/client`), not the new `prisma-client` generator that writes into `app/` — keeps generated code out of the App Router tree and imports simple.
 - **Prisma client singleton** in `lib/prisma.ts` (global-cached in dev) to avoid exhausting Neon connections on hot reload.
+- **Scoring model `claude-sonnet-4-6`** (locked in PLAN) via `messages.parse()` + a Zod `output_config.format` for guaranteed structured output. Rubric + CV live in the cached `system` prefix (`cache_control: ephemeral`); only the per-job turn varies. Thinking disabled for batch cost/latency. `lib/cv-context.ts` reads `cv-context.md` at runtime — `next.config.ts` `outputFileTracingIncludes` bundles it into the score lambda (a dynamic `fs` path Next won't trace on its own).
+- **Score cron is separate from ingest and lags it** — `/api/cron/score` (hourly) scores a small batch (6/run, ~6s/job, kept under the 60s lambda cap) of unscored jobs freshest-first; `/api/cron/ingest` (daily) only fetches. Jobs exist unscored until the scorer catches up.
+- **Rubric is deliberately harsh / honest** — best real matches in a typical snapshot land ~50-65 (all "Senior"-level); 70+ is reserved for a genuine mid-level TS/EU-remote fit. Don't loosen it to manufacture green scores.

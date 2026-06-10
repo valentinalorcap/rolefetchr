@@ -6,7 +6,7 @@ Job aggregator with AI scoring against a personal CV. Pulls remote jobs from mul
 
 ## Stack
 
-Next.js 15 (App Router, TS) · Tailwind + shadcn/ui · Neon Postgres + Prisma · Anthropic API (Claude Sonnet) with prompt caching · Resend (email) · Vercel + Vercel Cron.
+Next.js 15 (App Router, TS) · Tailwind + shadcn/ui · Neon Postgres + Prisma · Anthropic API (Claude Sonnet) with prompt caching · Resend (email) · Vercel · GitHub Actions cron.
 
 ## Local setup
 
