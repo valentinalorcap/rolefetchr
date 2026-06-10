@@ -6,8 +6,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection for the app (serverless-friendly).
+  url       = env("DATABASE_URL")
+  // Direct (unpooled) connection for Migrate — migrations fail over Neon's pooler.
+  directUrl = env("DIRECT_URL")
 }
 
 model Job {
