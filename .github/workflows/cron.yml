@@ -1,0 +1,40 @@
+name: Cron jobs
+
+# Vercel Hobby caps crons at once-per-day, so scheduling lives here instead.
+# These hit the authed cron routes on the deployed app. Scheduled workflows
+# only run from the default branch, and times are UTC.
+on:
+  schedule:
+    - cron: "0 6 * * *" # ingest — daily 06:00 UTC
+    - cron: "0 * * * *" # score — hourly (drains the scoring backlog)
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which job to run manually
+        type: choice
+        options: [both, ingest, score]
+        default: both
+
+env:
+  APP_URL: https://job-matchmaker-ruby.vercel.app
+
+jobs:
+  ingest:
+    if: github.event.schedule == '0 6 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job != 'score')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ingest
+        run: |
+          curl -fsS --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "$APP_URL/api/cron/ingest"
+
+  score:
+    if: github.event.schedule == '0 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job != 'ingest')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger score
+        run: |
+          curl -fsS --retry 3 --retry-delay 10 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "$APP_URL/api/cron/score"

@@ -24,7 +24,7 @@ She built Klara (klara-de-huevo.vercel.app) already with the same stack. This pr
 - Tailwind + shadcn/ui
 - Neon Postgres + Prisma
 - Anthropic API (Claude Sonnet 4.6) with prompt caching
-- Vercel deploy + Vercel Cron (or GitHub Actions if Vercel free tier doesn't allow)
+- Vercel deploy + GitHub Actions cron (Vercel Hobby caps crons at once/day)
 - Resend for email digest
 
 ## Where things live
@@ -51,7 +51,7 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 **Ingestion → scoring → display are separate, async stages connected through Postgres:**
 - **Sources are adapters.** Each lives in `lib/sources/<name>.ts` and exposes fetch + parse to a common `Job` shape. Adding a source = one new adapter, no changes elsewhere. RemoteOK/Remotive are JSON APIs (need custom `User-Agent`); WeWorkRemotely is RSS; Hacker News means parsing the monthly "Who's hiring" thread.
 - **`lib/ingest.ts`** runs adapters and dedups on the unique `(source, externalId)`; a secondary `title+company` hash guards against the same job appearing across sources.
-- **Two independent crons**, both authed via `CRON_SECRET`: `app/api/cron/ingest/route.ts` (daily) fills the DB; `app/api/cron/score/route.ts` (hourly) picks up jobs with no `JobScore` and scores a small batch (5–10/run) to cap Anthropic cost. Scoring deliberately lags ingestion — jobs exist unscored before the scorer catches up. A third daily cron sends the email digest.
+- **Two independent crons**, both authed via `CRON_SECRET` and **triggered by GitHub Actions** (`.github/workflows/cron.yml`), not Vercel — the Hobby plan caps crons at once/day, which broke the hourly score schedule. The workflow hits the deployed routes on a schedule: `app/api/cron/ingest/route.ts` (daily) fills the DB; `app/api/cron/score/route.ts` (hourly) picks up jobs with no `JobScore` and scores a small batch to cap Anthropic cost. Scoring deliberately lags ingestion — jobs exist unscored before the scorer catches up. (A digest cron will be added in Phase 6.)
 - **Scoring (`lib/scorer.ts`)** is the differentiator. `cv-context.md` is loaded as a system prompt with `cache_control: ephemeral` so the CV (the large, stable block) is cached and not re-billed per job. Output is structured via a Zod schema (`score 0-100`, `reasoning`, `matchedSkills`, `gaps`). The scoring rubric (stack/location/seniority/domain weights, Spain-EOR eligibility) lives in the prompt in `PLAN.md` Phase 3 — tune there.
 
 **Data model** (`Job` is the hub; see full Prisma schema in `PLAN.md` Phase 0): `Job` 1:1 optional `JobScore`, `Job` 1:1 optional `JobAction` (SAVED/APPLIED/NOT_INTERESTED/INTERVIEW/REJECTED — drives the saved/applied tracker UI), plus `IngestionRun` for per-run logging. Both relations cascade-delete with the job.
