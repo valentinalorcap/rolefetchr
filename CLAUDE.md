@@ -1,0 +1,71 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Current state
+Phase 0 (scaffold) in progress. Next.js 15 app scaffolded, Prisma schema written, client generated. Still pending in Phase 0 (need Valentina / external accounts): create the GitHub repo, create the Neon DB and set `DATABASE_URL`, run the first `npm run db:migrate`, and connect Vercel. Then on to Phase 1 (ingestion) per `PLAN.md`.
+
+**Environment gotcha:** the machine's default Node is v16 (too old for Next 15). This project needs Node 22 — pinned in `.nvmrc`. Every shell must `nvm use` (or prepend `~/.nvm/versions/node/v22.22.2/bin` to PATH) before running npm/npx, or builds fail cryptically.
+
+Common commands: `npm run dev` · `npm run build` · `npm run lint` · `npm run db:migrate` (create+apply migration) · `npm run db:deploy` (CI/prod) · `npm run db:studio`. `prisma generate` runs on `postinstall`.
+
+## What this project is
+Job aggregator with AI scoring against Valentina's CV. Pulls remote jobs from multiple sources (RemoteOK, Remotive, WeWorkRemotely, Hacker News), scores each one against her CV using Claude Sonnet, and surfaces top matches in a UI + email digest.
+
+**Solves real pain:** Valentina was spending hours filtering US-only roles manually. This automates that.
+
+## Who I'm working with
+Valentina Lorca. Software Engineer, 5 years experience. Madrid-based, working remote via EOR (Deel). Currently at Cotalker (TypeScript / Angular / NestJS), actively searching for next role.
+
+She built Klara (klara-de-huevo.vercel.app) already with the same stack. This project reuses that foundation.
+
+## Tech stack (locked in)
+- Next.js 15 App Router + TypeScript
+- Tailwind + shadcn/ui
+- Neon Postgres + Prisma
+- Anthropic API (Claude Sonnet 4.6) with prompt caching
+- Vercel deploy + Vercel Cron (or GitHub Actions if Vercel free tier doesn't allow)
+- Resend for email digest
+
+## Where things live
+- `PLAN.md` — full phased plan with schemas, prompts, decisions
+- `cv-context.md` — snapshot of Valentina's CV used as Claude scoring context
+- Code (when you start building) goes in the root
+
+## Workflow
+- Follow `PLAN.md` phase by phase
+- After each phase, ship a commit
+- Daily commits visible on GitHub contribution graph (this matters for Valentina's job search portfolio)
+
+## How to behave when helping
+- Brief and direct — no fluff (see her preferences)
+- Reply in neutral Latin American Spanish (no Argentinian register)
+- No manual line breaks inside paragraphs/code blocks for copy-paste
+- When she ships a phase, suggest a commit message + push
+- Honest about gaps and risks; don't oversell features
+- This is a PORTFOLIO piece — code quality matters (TypeScript strict, sensible tests, clean structure)
+
+## Architecture (the big picture)
+The system is two decoupled background pipelines feeding a read-heavy UI, not a request-time aggregator.
+
+**Ingestion → scoring → display are separate, async stages connected through Postgres:**
+- **Sources are adapters.** Each lives in `lib/sources/<name>.ts` and exposes fetch + parse to a common `Job` shape. Adding a source = one new adapter, no changes elsewhere. RemoteOK/Remotive are JSON APIs (need custom `User-Agent`); WeWorkRemotely is RSS; Hacker News means parsing the monthly "Who's hiring" thread.
+- **`lib/ingest.ts`** runs adapters and dedups on the unique `(source, externalId)`; a secondary `title+company` hash guards against the same job appearing across sources.
+- **Two independent crons**, both authed via `CRON_SECRET`: `app/api/cron/ingest/route.ts` (daily) fills the DB; `app/api/cron/score/route.ts` (hourly) picks up jobs with no `JobScore` and scores a small batch (5–10/run) to cap Anthropic cost. Scoring deliberately lags ingestion — jobs exist unscored before the scorer catches up. A third daily cron sends the email digest.
+- **Scoring (`lib/scorer.ts`)** is the differentiator. `cv-context.md` is loaded as a system prompt with `cache_control: ephemeral` so the CV (the large, stable block) is cached and not re-billed per job. Output is structured via a Zod schema (`score 0-100`, `reasoning`, `matchedSkills`, `gaps`). The scoring rubric (stack/location/seniority/domain weights, Spain-EOR eligibility) lives in the prompt in `PLAN.md` Phase 3 — tune there.
+
+**Data model** (`Job` is the hub; see full Prisma schema in `PLAN.md` Phase 0): `Job` 1:1 optional `JobScore`, `Job` 1:1 optional `JobAction` (SAVED/APPLIED/NOT_INTERESTED/INTERVIEW/REJECTED — drives the saved/applied tracker UI), plus `IngestionRun` for per-run logging. Both relations cascade-delete with the job.
+
+**UI** is server components reading the DB directly. Filters/sort/pagination are URL search-param driven (`?source=`, `?keyword=`, `?fresh=`, `?minScore=`, `?status=`). User actions go through server actions writing `JobAction`.
+
+## Differentiators (what makes this NOT just another aggregator)
+1. AI scoring against personal CV (0-100 + reasoning + matched skills + gaps)
+2. Filters specific to her EOR-EU profile (Madrid-based, mid-level fullstack TS)
+3. Saved/Applied/Not-Interested workflow
+4. Daily email digest with top fresh jobs > threshold
+
+## Decision log
+- **Node 22 (lts/jod)** for the project, pinned in `.nvmrc`. Machine default is Node 16, which can't run Next 15.
+- **Prisma pinned to v6**, not v7. Prisma 7 drops `url` from the schema datasource and requires a runtime driver adapter — extra complexity and newness for an MVP. v6 keeps the classic `url = env("DATABASE_URL")` + `import { PrismaClient } from "@prisma/client"` flow the PLAN assumes. Revisit v7 + Neon serverless adapter post-v1 if serverless connection limits bite.
+- **Classic `prisma-client-js` generator** (output to `node_modules/@prisma/client`), not the new `prisma-client` generator that writes into `app/` — keeps generated code out of the App Router tree and imports simple.
+- **Prisma client singleton** in `lib/prisma.ts` (global-cached in dev) to avoid exhausting Neon connections on hot reload.

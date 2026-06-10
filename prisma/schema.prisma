@@ -1,0 +1,80 @@
+// Prisma schema for job-matchmaker.
+// Models mirror PLAN.md Phase 0. Run `npm run db:migrate` after setting DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  source      Source
+  externalId  String // ID original en la fuente
+  title       String
+  company     String
+  description String   @db.Text
+  location    String?
+  remote      Boolean  @default(true)
+  salary      String?
+  tags        String[]
+  sourceUrl   String
+  postedAt    DateTime
+  fetchedAt   DateTime @default(now())
+
+  score  JobScore?
+  action JobAction?
+
+  @@unique([source, externalId])
+  @@index([postedAt])
+  @@index([fetchedAt])
+}
+
+model JobScore {
+  id            String   @id @default(cuid())
+  jobId         String   @unique
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  score         Int // 0-100
+  reasoning     String   @db.Text
+  matchedSkills String[]
+  gaps          String[]
+  evaluatedAt   DateTime @default(now())
+  model         String // e.g. "claude-sonnet-4-6"
+}
+
+model JobAction {
+  id        String       @id @default(cuid())
+  jobId     String       @unique
+  job       Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status    ActionStatus // SAVED | APPLIED | NOT_INTERESTED | INTERVIEW | REJECTED
+  notes     String?      @db.Text
+  updatedAt DateTime     @updatedAt
+}
+
+model IngestionRun {
+  id          String    @id @default(cuid())
+  source      Source
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  jobsFetched Int       @default(0)
+  jobsNew     Int       @default(0)
+  error       String?
+}
+
+enum Source {
+  REMOTEOK
+  REMOTIVE
+  WEWORKREMOTELY
+  HACKERNEWS
+}
+
+enum ActionStatus {
+  SAVED
+  APPLIED
+  NOT_INTERESTED
+  INTERVIEW
+  REJECTED
+}
