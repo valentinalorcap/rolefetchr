@@ -1,4 +1,4 @@
-import { Prisma, Source } from "@prisma/client";
+import { ActionStatus, Prisma, Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const PAGE_SIZE = 50;
@@ -6,7 +6,9 @@ export const PAGE_SIZE = 50;
 export type SortKey = "recent" | "title" | "score";
 export type FreshKey = "24h" | "48h" | "7d";
 
-export type JobWithScore = Prisma.JobGetPayload<{ include: { score: true } }>;
+export type JobWithRelations = Prisma.JobGetPayload<{
+  include: { score: true; action: true };
+}>;
 
 export interface JobFilters {
   sources: Source[];
@@ -14,6 +16,7 @@ export interface JobFilters {
   fresh: FreshKey | null;
   remoteOnly: boolean;
   minScore: number | null;
+  status: ActionStatus | null;
   sort: SortKey;
   take: number;
 }
@@ -39,12 +42,20 @@ export function parseJobFilters(params: RawParams): JobFilters {
   const take = Number.parseInt(first(params.take) ?? "", 10);
   const minScore = Number.parseInt(first(params.minScore) ?? "", 10);
 
+  const validStatuses = new Set(Object.values(ActionStatus));
+  const rawStatus = first(params.status)?.toUpperCase();
+  const status =
+    rawStatus && validStatuses.has(rawStatus as ActionStatus)
+      ? (rawStatus as ActionStatus)
+      : null;
+
   return {
     sources,
     keyword: first(params.keyword)?.trim() || null,
     fresh: fresh === "24h" || fresh === "48h" || fresh === "7d" ? fresh : null,
     remoteOnly: first(params.remote) === "true",
     minScore: Number.isFinite(minScore) && minScore > 0 ? minScore : null,
+    status,
     sort: sort === "title" || sort === "score" ? sort : "recent",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
@@ -64,6 +75,14 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   // minScore implies "has a score at least this high" — unscored jobs drop out.
   if (filters.minScore !== null) {
     where.score = { is: { score: { gte: filters.minScore } } };
+  }
+
+  if (filters.status) {
+    // Explicit status filter (e.g. the Saved / Applied pages).
+    where.action = { is: { status: filters.status } };
+  } else {
+    // Default view hides jobs marked not-interested (keeps null-action jobs).
+    where.NOT = { action: { is: { status: ActionStatus.NOT_INTERESTED } } };
   }
 
   if (filters.keyword) {
@@ -91,7 +110,7 @@ function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
 }
 
 export interface JobListPage {
-  jobs: JobWithScore[];
+  jobs: JobWithRelations[];
   hasMore: boolean;
   total: number;
 }
@@ -106,7 +125,7 @@ export async function getJobs(filters: JobFilters): Promise<JobListPage> {
       where,
       orderBy: buildOrderBy(filters.sort),
       take: filters.take + 1,
-      include: { score: true },
+      include: { score: true, action: true },
     }),
     prisma.job.count({ where }),
   ]);
@@ -116,5 +135,8 @@ export async function getJobs(filters: JobFilters): Promise<JobListPage> {
 }
 
 export function getJobById(id: string) {
-  return prisma.job.findUnique({ where: { id }, include: { score: true } });
+  return prisma.job.findUnique({
+    where: { id },
+    include: { score: true, action: true },
+  });
 }
