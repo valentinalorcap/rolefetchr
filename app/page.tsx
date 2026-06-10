@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getJobs, parseJobFilters, PAGE_SIZE } from "@/lib/jobs";
-import { JobCard } from "@/components/job-card";
+import { JobGrid } from "@/components/job-grid";
 import { JobFilters } from "@/components/job-filters";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,9 +30,9 @@ export default async function Home({
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">job-matchmaker</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Remote jobs</h1>
         <p className="text-sm text-muted-foreground">
-          Remote jobs aggregated and (soon) scored against your CV.
+          Aggregated from multiple sources and scored against your CV.
         </p>
       </header>
 
@@ -45,18 +45,10 @@ export default async function Home({
         {filters.keyword ? ` matching “${filters.keyword}”` : ""}
       </p>
 
-      {jobs.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
-          No jobs match these filters. Try clearing them or widening the time
-          range.
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
-      )}
+      <JobGrid
+        jobs={jobs}
+        emptyMessage="No jobs match these filters. Try clearing them or widening the time range."
+      />
 
       {hasMore ? (
         <div className="mt-8 flex justify-center">

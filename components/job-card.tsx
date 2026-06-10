@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "@/components/score-badge";
-import type { JobWithScore } from "@/lib/jobs";
+import { JobActions } from "@/components/job-actions";
+import type { JobWithRelations } from "@/lib/jobs";
 import { relativeTime, snippet } from "@/lib/format";
 
 const SOURCE_LABEL: Record<Source, string> = {
@@ -19,7 +20,7 @@ const SOURCE_LABEL: Record<Source, string> = {
   HACKERNEWS: "Hacker News",
 };
 
-export function JobCard({ job }: { job: JobWithScore }) {
+export function JobCard({ job }: { job: JobWithRelations }) {
   return (
     <Card className="transition-colors hover:border-foreground/20">
       <CardHeader>
@@ -56,18 +57,21 @@ export function JobCard({ job }: { job: JobWithScore }) {
         ) : null}
       </CardContent>
 
-      <CardFooter className="justify-between text-xs text-muted-foreground">
-        <time dateTime={job.postedAt.toISOString()}>
-          {relativeTime(job.postedAt)}
-        </time>
-        <a
-          href={job.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground hover:underline"
-        >
-          View original ↗
-        </a>
+      <CardFooter className="flex-col items-stretch gap-3">
+        <JobActions jobId={job.id} status={job.action?.status ?? null} />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <time dateTime={job.postedAt.toISOString()}>
+            {relativeTime(job.postedAt)}
+          </time>
+          <a
+            href={job.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground hover:underline"
+          >
+            View original ↗
+          </a>
+        </div>
       </CardFooter>
     </Card>
   );

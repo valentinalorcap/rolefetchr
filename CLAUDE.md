@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Current state
-Phases 0–3 done (scaffold, ingestion, browsing UI, AI scoring). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme). Next up: Phase 4 (saved/applied/not-interested actions) per `PLAN.md`.
+Phases 0–4 done (scaffold, ingestion, browsing UI, AI scoring, saved/applied actions). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions. Next up: Phase 5 (more sources + polish) per `PLAN.md`.
 
 **Environment gotcha:** the machine's default Node is v16 (too old for Next 15). This project needs Node 22 — pinned in `.nvmrc`. Every shell must `nvm use` (or prepend `~/.nvm/versions/node/v22.22.2/bin` to PATH) before running npm/npx, or builds fail cryptically.
 

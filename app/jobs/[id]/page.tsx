@@ -4,6 +4,7 @@ import type { Source } from "@prisma/client";
 import { getJobById } from "@/lib/jobs";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "@/components/score-badge";
+import { JobActions } from "@/components/job-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { relativeTime, stripHtml } from "@/lib/format";
@@ -51,6 +52,10 @@ export default async function JobDetail({
         <time dateTime={job.postedAt.toISOString()}>
           Posted {relativeTime(job.postedAt)}
         </time>
+      </div>
+
+      <div className="mt-4">
+        <JobActions jobId={job.id} status={job.action?.status ?? null} />
       </div>
 
       {job.tags.length > 0 ? (
