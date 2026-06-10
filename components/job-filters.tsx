@@ -66,6 +66,20 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+        Status
+        <select
+          name="status"
+          defaultValue={filters.status ?? ""}
+          className={selectClass}
+        >
+          <option value="">Active</option>
+          <option value="SAVED">Saved</option>
+          <option value="APPLIED">Applied</option>
+          <option value="NOT_INTERESTED">Not interested</option>
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
         Sort
         <select name="sort" defaultValue={filters.sort} className={selectClass}>
           <option value="recent">Newest</option>
