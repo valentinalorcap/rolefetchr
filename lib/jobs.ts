@@ -3,14 +3,17 @@ import { prisma } from "@/lib/prisma";
 
 export const PAGE_SIZE = 50;
 
-export type SortKey = "recent" | "title";
+export type SortKey = "recent" | "title" | "score";
 export type FreshKey = "24h" | "48h" | "7d";
+
+export type JobWithScore = Prisma.JobGetPayload<{ include: { score: true } }>;
 
 export interface JobFilters {
   sources: Source[];
   keyword: string | null;
   fresh: FreshKey | null;
   remoteOnly: boolean;
+  minScore: number | null;
   sort: SortKey;
   take: number;
 }
@@ -34,13 +37,15 @@ export function parseJobFilters(params: RawParams): JobFilters {
   const fresh = first(params.fresh);
   const sort = first(params.sort);
   const take = Number.parseInt(first(params.take) ?? "", 10);
+  const minScore = Number.parseInt(first(params.minScore) ?? "", 10);
 
   return {
     sources,
     keyword: first(params.keyword)?.trim() || null,
     fresh: fresh === "24h" || fresh === "48h" || fresh === "7d" ? fresh : null,
     remoteOnly: first(params.remote) === "true",
-    sort: sort === "title" ? "title" : "recent",
+    minScore: Number.isFinite(minScore) && minScore > 0 ? minScore : null,
+    sort: sort === "title" || sort === "score" ? sort : "recent",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
 }
@@ -56,6 +61,11 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     where.postedAt = { gte: since };
   }
 
+  // minScore implies "has a score at least this high" — unscored jobs drop out.
+  if (filters.minScore !== null) {
+    where.score = { is: { score: { gte: filters.minScore } } };
+  }
+
   if (filters.keyword) {
     const contains = { contains: filters.keyword, mode: "insensitive" as const };
     where.OR = [
@@ -68,8 +78,20 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   return where;
 }
 
+function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
+  switch (sort) {
+    case "title":
+      return { title: "asc" };
+    case "score":
+      // Highest score first; unscored jobs sort last (null relation).
+      return { score: { score: "desc" } };
+    default:
+      return { postedAt: "desc" };
+  }
+}
+
 export interface JobListPage {
-  jobs: Awaited<ReturnType<typeof prisma.job.findMany>>;
+  jobs: JobWithScore[];
   hasMore: boolean;
   total: number;
 }
@@ -77,12 +99,15 @@ export interface JobListPage {
 /** Fetch a filtered, sorted page of jobs plus whether more exist (for "load more"). */
 export async function getJobs(filters: JobFilters): Promise<JobListPage> {
   const where = buildWhere(filters);
-  const orderBy: Prisma.JobOrderByWithRelationInput =
-    filters.sort === "title" ? { title: "asc" } : { postedAt: "desc" };
 
   const [rows, total] = await Promise.all([
     // Fetch one extra to detect a next page without a second count per filter.
-    prisma.job.findMany({ where, orderBy, take: filters.take + 1 }),
+    prisma.job.findMany({
+      where,
+      orderBy: buildOrderBy(filters.sort),
+      take: filters.take + 1,
+      include: { score: true },
+    }),
     prisma.job.count({ where }),
   ]);
 
@@ -91,5 +116,5 @@ export async function getJobs(filters: JobFilters): Promise<JobListPage> {
 }
 
 export function getJobById(id: string) {
-  return prisma.job.findUnique({ where: { id } });
+  return prisma.job.findUnique({ where: { id }, include: { score: true } });
 }
