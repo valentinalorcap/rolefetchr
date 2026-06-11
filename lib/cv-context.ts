@@ -1,18 +1,24 @@
 import { readFileSync } from "fs";
 import path from "path";
+import { prisma } from "@/lib/prisma";
 
-// The scoring rubric. Kept in the cached system prefix alongside the CV so it's
-// billed once per cache window, not per job. See PLAN.md Phase 3.
-const RUBRIC = `You evaluate how well a remote job fits Valentina, a mid-level Software Engineer. Score each job 0-100 for fit against her CV below.
+// Default scoring rubric. Seeded into ScoringConfig (id=1) on first use; after
+// that it's editable at runtime (e.g. by an external agent over MCP), so this
+// constant is only the starting point.
+const DEFAULT_RUBRIC = `You evaluate how well a remote job fits Valentina, a mid-level Software Engineer, and score it 0-100 against her CV (below).
 
-Weigh these factors:
+Valentina works fully remote as an independent contractor (via an EOR, Deel), based in Madrid (CET). She is NOT looking to relocate and cannot take roles that require employment authorization she doesn't hold. Treat work-eligibility as a gating factor:
+
+- Eligibility / location (most important):
+  - HIGH: fully remote AND open worldwide / "anywhere" / hires international contractors / EOR- or contractor-friendly / no specific work-authorization requirement.
+  - LOW: requires authorization to work in a specific country she can't satisfy (e.g. "must be authorized to work in the US", US W2 only, EU/US citizens only, "must reside in <country>"), onsite/hybrid, relocation, or a security clearance.
+  - Timezone: CET overlap is easy; roles demanding near-full US-hours overlap are a drawback but not disqualifying for a contractor.
 - Stack match: TypeScript/Angular/React/Node/NestJS = high; Ruby/Go/Python/PHP = medium (transferable); Java/.NET enterprise, pure data/ML, pure devops = low.
-- Location / remote eligibility: remote and Europe/Spain-friendly or worldwide = high; US-only or US-timezone-required = very low (she is Madrid-based, contractor/EOR).
 - Seniority fit: mid / mid-senior / "3-5 years" = high; junior/entry = medium; staff/principal/lead-only or "8+ years" = lower.
 - Domain interest: AI / developer tooling / B2B SaaS = high; fintech/healthcare = medium; crypto/gambling/defense/adtech = low.
-- Language: English-speaking roles = fine; roles requiring a language she doesn't have (German, French, etc.) = lower.
+- Language: English roles = fine; roles requiring a language she lacks (German, French, etc.) = lower.
 
-Be calibrated and honest — most generic listings should land 30-60. Reserve 80+ for genuinely strong matches. Penalize US-only roles hard regardless of stack.
+Be calibrated and honest — most generic listings should land 30-60. Reserve 80+ for genuinely strong matches (right stack, mid-level, truly remote/worldwide). A location-locked or wrong-stack role should score low regardless of how appealing it otherwise is.
 
 Return:
 - score: integer 0-100
@@ -32,7 +38,46 @@ function loadCv(): string {
   return cachedCv;
 }
 
-/** Stable system prompt (rubric + CV) — cached across all job scorings. */
-export function buildScoringSystemPrompt(): string {
-  return `${RUBRIC}\n\n=== CANDIDATE CV (source of truth) ===\n\n${loadCv()}`;
+/** The CV text the scoring is based on (from cv-context.md). */
+export function getCvText(): string {
+  return loadCv();
+}
+
+/** Read the scoring config, seeding the default rubric on first use. */
+export async function getScoringConfig() {
+  const existing = await prisma.scoringConfig.findUnique({ where: { id: 1 } });
+  if (existing) return existing;
+  return prisma.scoringConfig.create({
+    data: { id: 1, rubric: DEFAULT_RUBRIC },
+  });
+}
+
+/** Update the rubric and/or the extra candidate context (partial). */
+export async function updateScoringConfig(input: {
+  rubric?: string;
+  candidateContext?: string | null;
+}) {
+  await getScoringConfig(); // ensure the row exists
+  return prisma.scoringConfig.update({
+    where: { id: 1 },
+    data: {
+      ...(input.rubric !== undefined ? { rubric: input.rubric } : {}),
+      ...(input.candidateContext !== undefined
+        ? { candidateContext: input.candidateContext }
+        : {}),
+    },
+  });
+}
+
+/**
+ * Stable system prompt for scoring: current rubric + CV + any extra candidate
+ * context. Cached per request via prompt caching; rubric edits invalidate it
+ * (expected). Async because the rubric now lives in the DB.
+ */
+export async function buildScoringSystemPrompt(): Promise<string> {
+  const cfg = await getScoringConfig();
+  const extra = cfg.candidateContext?.trim()
+    ? `\n\n=== ADDITIONAL CONTEXT ABOUT THE CANDIDATE ===\n\n${cfg.candidateContext.trim()}`
+    : "";
+  return `${cfg.rubric}\n\n=== CANDIDATE CV (source of truth) ===\n\n${loadCv()}${extra}`;
 }

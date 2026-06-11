@@ -46,7 +46,7 @@ export async function scoreJob(job: Job): Promise<JobScoreResult> {
     system: [
       {
         type: "text",
-        text: buildScoringSystemPrompt(),
+        text: await buildScoringSystemPrompt(),
         // Cache the rubric+CV prefix; only the per-job user turn varies.
         cache_control: { type: "ephemeral" },
       },
