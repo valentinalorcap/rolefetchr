@@ -33,6 +33,22 @@ Open http://localhost:3000.
 | `npm run db:deploy` | Apply migrations (prod/CI) |
 | `npm run db:studio` | Prisma Studio |
 
+## MCP server
+
+For sites that can't be scraped (LinkedIn, Welcome to the Jungle, Jobgether…), the app exposes an MCP server at `/api/mcp` so any MCP-capable agent can push jobs into the same pipeline — each is deduped, scored against the CV, and shown alongside the rest.
+
+Tools: `add_job` (platform, url, title, company, description, …) and `recent_matches`. Bearer-authed with `MCP_TOKEN`.
+
+Connect from Claude Code:
+
+```bash
+claude mcp add --transport http job-matchmaker \
+  https://<your-app>.vercel.app/api/mcp \
+  --header "Authorization: Bearer $MCP_TOKEN"
+```
+
+Claude Desktop: add a remote MCP connector with the same URL and `Authorization` header.
+
 ## Status
 
-Early build, phase by phase per `PLAN.md`. See `CLAUDE.md` for architecture.
+Built phase by phase per `PLAN.md`. See `CLAUDE.md` for architecture.

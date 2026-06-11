@@ -3,9 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Current state
-Phases 0–5 done (scaffold, ingestion, browsing UI, AI scoring, saved/applied actions, 4 sources + mobile polish). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions (ingest daily, score every 30 min). Phase 6 reframed: the email digest is dropped (see memory `no-email-digest`) and replaced by the in-app **Today** view. Next/last: Phase 7 (README + ship).
+Phases 0–6 done plus an MCP ingestion add-on. Built: scaffold, ingestion, browsing UI, AI scoring, saved/applied actions, 4 auto sources + mobile polish, in-app **Today** view (email digest dropped — see memory `no-email-digest`), and an **MCP server** so an external agent (Claude Code/Desktop) can push jobs from sites we can't scrape (LinkedIn, etc.). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions (ingest daily, score every 30 min). Next/last: Phase 7 (README + ship).
 
-Sources live: RemoteOK + Remotive (JSON), WeWorkRemotely (RSS, two category feeds), Hacker News "Who's hiring" (Algolia API, remote-only comments).
+Sources live: RemoteOK + Remotive (JSON), WeWorkRemotely (RSS, two category feeds), Hacker News "Who's hiring" (Algolia API, remote-only comments), plus `MANUAL` jobs added via MCP (the `sourceLabel` field holds the real platform, e.g. "LinkedIn").
 
 **Environment gotcha:** the machine's default Node is v16 (too old for Next 15). This project needs Node 22 — pinned in `.nvmrc`. Every shell must `nvm use` (or prepend `~/.nvm/versions/node/v22.22.2/bin` to PATH) before running npm/npx, or builds fail cryptically.
 
@@ -65,6 +65,7 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 2. Filters specific to her EOR-EU profile (Madrid-based, mid-level fullstack TS)
 3. Saved/Applied/Not-Interested workflow
 4. In-app daily digest — the **Today** view (`/today`): jobs first seen in the last 48h, sorted by CV fit. (Replaced the email digest — Valentina prefers to pull/review herself; see memory `no-email-digest`.)
+5. **MCP server** (`/api/mcp`, bearer-authed via `MCP_TOKEN`): an external agent can `add_job` (a LinkedIn/etc. posting we can't scrape — it's deduped, scored against the CV, and shown alongside the rest) and `recent_matches`. Lets any MCP-capable agent feed the same pipeline.
 
 ## Decision log
 - **Node 22 (lts/jod)** for the project, pinned in `.nvmrc`. Machine default is Node 16, which can't run Next 15.
@@ -73,4 +74,6 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 - **Prisma client singleton** in `lib/prisma.ts` (global-cached in dev) to avoid exhausting Neon connections on hot reload.
 - **Scoring model `claude-sonnet-4-6`** (locked in PLAN) via `messages.parse()` + a Zod `output_config.format` for guaranteed structured output. Rubric + CV live in the cached `system` prefix (`cache_control: ephemeral`); only the per-job turn varies. Thinking disabled for batch cost/latency. `lib/cv-context.ts` reads `cv-context.md` at runtime — `next.config.ts` `outputFileTracingIncludes` bundles it into the score lambda (a dynamic `fs` path Next won't trace on its own).
 - **Score cron is separate from ingest and lags it** — `/api/cron/score` (hourly) scores a small batch (6/run, ~6s/job, kept under the 60s lambda cap) of unscored jobs freshest-first; `/api/cron/ingest` (daily) only fetches. Jobs exist unscored until the scorer catches up.
-- **Rubric is deliberately harsh / honest** — best real matches in a typical snapshot land ~50-65 (all "Senior"-level); 70+ is reserved for a genuine mid-level TS/EU-remote fit. Don't loosen it to manufacture green scores.
+- **Rubric is deliberately harsh / honest** — best real matches in a typical snapshot land ~50-65 (all "Senior"-level); 70+ is reserved for a genuine mid-level TS/EU-remote fit. Don't loosen it to manufacture green scores. (A genuine Angular/TS/EU-remote role does score ~88 — verified via MCP.)
+- **Default relevance floor** — list views (home, Today) hide jobs scored below `DEFAULT_MIN_SCORE` (30) and unscored jobs; "Show all" disables it. Best-match sort ranks scored jobs only. Saved/Applied ignore the floor.
+- **MCP via `mcp-handler`** at `app/api/[transport]/route.ts` (basePath `/api` → URL `/api/mcp`), bearer-authed by a manual wrapper (not OAuth). `MANUAL` source + nullable `sourceLabel` keep it generic across platforms rather than one enum value per site. Manual jobs are scored synchronously on add (`lib/manual-ingest.ts`), not via the cron.
