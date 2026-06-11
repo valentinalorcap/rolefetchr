@@ -4,7 +4,13 @@ import { JobGrid } from "@/components/job-grid";
 export const metadata = { title: "Applied · job-matchmaker" };
 
 export default async function AppliedPage() {
-  const filters = parseJobFilters({ status: "APPLIED", sort: "recent", take: "200" });
+  // minScore "0" disables the relevance floor — show everything you applied to.
+  const filters = parseJobFilters({
+    status: "APPLIED",
+    sort: "recent",
+    take: "200",
+    minScore: "0",
+  });
   const { jobs, total } = await getJobs(filters);
 
   return (
