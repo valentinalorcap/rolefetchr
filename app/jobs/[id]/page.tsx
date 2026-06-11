@@ -15,6 +15,7 @@ const SOURCE_LABEL: Record<Source, string> = {
   REMOTIVE: "Remotive",
   WEWORKREMOTELY: "WeWorkRemotely",
   HACKERNEWS: "Hacker News",
+  MANUAL: "Manual",
 };
 
 export default async function JobDetail({
@@ -45,7 +46,7 @@ export default async function JobDetail({
           </p>
         </div>
         <Badge variant="secondary" className="shrink-0">
-          {SOURCE_LABEL[job.source]}
+          {job.sourceLabel ?? SOURCE_LABEL[job.source]}
         </Badge>
       </div>
 
@@ -123,7 +124,7 @@ export default async function JobDetail({
         rel="noopener noreferrer"
         className={cn(buttonVariants(), "mt-6")}
       >
-        Apply on {SOURCE_LABEL[job.source]} ↗
+        Apply on {job.sourceLabel ?? SOURCE_LABEL[job.source]} ↗
       </a>
 
       <article

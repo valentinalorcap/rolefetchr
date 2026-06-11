@@ -18,6 +18,7 @@ const SOURCE_LABEL: Record<Source, string> = {
   REMOTIVE: "Remotive",
   WEWORKREMOTELY: "WeWorkRemotely",
   HACKERNEWS: "Hacker News",
+  MANUAL: "Manual",
 };
 
 export function JobCard({ job }: { job: JobWithRelations }) {
@@ -32,7 +33,9 @@ export function JobCard({ job }: { job: JobWithRelations }) {
           </CardTitle>
           <div className="flex shrink-0 items-center gap-1.5">
             {job.score ? <ScoreBadge score={job.score.score} /> : null}
-            <Badge variant="secondary">{SOURCE_LABEL[job.source]}</Badge>
+            <Badge variant="secondary">
+              {job.sourceLabel ?? SOURCE_LABEL[job.source]}
+            </Badge>
           </div>
         </div>
         <div className="break-words text-sm text-muted-foreground">
