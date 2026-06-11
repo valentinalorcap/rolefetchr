@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Current state
 Phases 0–6 done plus an MCP ingestion add-on. Built: scaffold, ingestion, browsing UI, AI scoring, saved/applied actions, 4 auto sources + mobile polish, in-app **Today** view (email digest dropped — see memory `no-email-digest`), and an **MCP server** so an external agent (Claude Code/Desktop) can push jobs from sites we can't scrape (LinkedIn, etc.). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions (ingest daily, score every 30 min). Next/last: Phase 7 (README + ship).
 
-Sources live: RemoteOK + Remotive (JSON), WeWorkRemotely (RSS, two category feeds), Hacker News "Who's hiring" (Algolia API, remote-only comments), plus `MANUAL` jobs added via MCP (the `sourceLabel` field holds the real platform, e.g. "LinkedIn").
+Sources live (6 auto + manual): RemoteOK + Remotive (JSON), WeWorkRemotely (RSS, two category feeds), Hacker News "Who's hiring" (Algolia API, remote-only comments), **Himalayas** (free JSON API, keyword search), **JSearch** (Google for Jobs via RapidAPI — covers LinkedIn/Indeed/Glassdoor; `JSEARCH_API_KEY`, free tier so queries run sequentially with a gap), plus `MANUAL` jobs added via MCP. The `sourceLabel` field holds the real platform for aggregator/manual sources (e.g. JSearch job from "LinkedIn").
 
 **Environment gotcha:** the machine's default Node is v16 (too old for Next 15). This project needs Node 22 — pinned in `.nvmrc`. Every shell must `nvm use` (or prepend `~/.nvm/versions/node/v22.22.2/bin` to PATH) before running npm/npx, or builds fail cryptically.
 

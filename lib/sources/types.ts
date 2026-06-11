@@ -6,6 +6,8 @@ import type { Source } from "@prisma/client";
  */
 export interface NormalizedJob {
   source: Source;
+  // For aggregator/manual sources, the real platform (e.g. "LinkedIn").
+  sourceLabel?: string | null;
   externalId: string;
   title: string;
   company: string;

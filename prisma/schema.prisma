@@ -75,6 +75,8 @@ enum Source {
   WEWORKREMOTELY
   HACKERNEWS
   MANUAL
+  HIMALAYAS
+  JSEARCH
 }
 
 enum ActionStatus {

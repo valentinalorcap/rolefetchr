@@ -73,6 +73,9 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
           <option value="REMOTIVE">Remotive</option>
           <option value="WEWORKREMOTELY">WeWorkRemotely</option>
           <option value="HACKERNEWS">Hacker News</option>
+          <option value="HIMALAYAS">Himalayas</option>
+          <option value="JSEARCH">JSearch (LinkedIn/Indeed…)</option>
+          <option value="MANUAL">Manual (MCP)</option>
         </select>
       </label>
 
