@@ -140,3 +140,24 @@ export function getJobById(id: string) {
     include: { score: true, action: true },
   });
 }
+
+/**
+ * The "Today" digest: jobs first ingested within `hours`, best-fit first.
+ * Uses fetchedAt (when we first saw it) — "new to review" — not the source's
+ * posted date. Hides not-interested; unscored jobs sort after scored ones.
+ */
+export async function getFreshJobs(
+  hours = 48,
+  limit = 40,
+): Promise<JobWithRelations[]> {
+  const since = new Date(Date.now() - hours * 3600_000);
+  return prisma.job.findMany({
+    where: {
+      fetchedAt: { gte: since },
+      NOT: { action: { is: { status: ActionStatus.NOT_INTERESTED } } },
+    },
+    orderBy: [{ score: { score: "desc" } }, { fetchedAt: "desc" }],
+    take: limit,
+    include: { score: true, action: true },
+  });
+}
