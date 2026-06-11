@@ -33,11 +33,11 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-        Source
-        <select name="source" defaultValue={source} className={selectClass}>
-          <option value="">All sources</option>
-          <option value="REMOTEOK">RemoteOK</option>
-          <option value="REMOTIVE">Remotive</option>
+        Sort
+        <select name="sort" defaultValue={filters.sort} className={selectClass}>
+          <option value="recent">Newest</option>
+          <option value="score">Best match</option>
+          <option value="title">Title A–Z</option>
         </select>
       </label>
 
@@ -66,6 +66,17 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+        Source
+        <select name="source" defaultValue={source} className={selectClass}>
+          <option value="">All sources</option>
+          <option value="REMOTEOK">RemoteOK</option>
+          <option value="REMOTIVE">Remotive</option>
+          <option value="WEWORKREMOTELY">WeWorkRemotely</option>
+          <option value="HACKERNEWS">Hacker News</option>
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
         Status
         <select
           name="status"
@@ -76,15 +87,6 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
           <option value="SAVED">Saved</option>
           <option value="APPLIED">Applied</option>
           <option value="NOT_INTERESTED">Not interested</option>
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-        Sort
-        <select name="sort" defaultValue={filters.sort} className={selectClass}>
-          <option value="recent">Newest</option>
-          <option value="score">Best match</option>
-          <option value="title">Title A–Z</option>
         </select>
       </label>
 
