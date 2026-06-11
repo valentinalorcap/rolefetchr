@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Current state
-Phases 0–5 done (scaffold, ingestion, browsing UI, AI scoring, saved/applied actions, 4 sources + mobile polish). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions (ingest daily, score every 30 min). Next up: Phase 6 (email digest via Resend — needs `RESEND_API_KEY`) per `PLAN.md`.
+Phases 0–5 done (scaffold, ingestion, browsing UI, AI scoring, saved/applied actions, 4 sources + mobile polish). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions (ingest daily, score every 30 min). Phase 6 reframed: the email digest is dropped (see memory `no-email-digest`) and replaced by the in-app **Today** view. Next/last: Phase 7 (README + ship).
 
 Sources live: RemoteOK + Remotive (JSON), WeWorkRemotely (RSS, two category feeds), Hacker News "Who's hiring" (Algolia API, remote-only comments).
 
@@ -64,7 +64,7 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 1. AI scoring against personal CV (0-100 + reasoning + matched skills + gaps)
 2. Filters specific to her EOR-EU profile (Madrid-based, mid-level fullstack TS)
 3. Saved/Applied/Not-Interested workflow
-4. Daily email digest with top fresh jobs > threshold
+4. In-app daily digest — the **Today** view (`/today`): jobs first seen in the last 48h, sorted by CV fit. (Replaced the email digest — Valentina prefers to pull/review herself; see memory `no-email-digest`.)
 
 ## Decision log
 - **Node 22 (lts/jod)** for the project, pinned in `.nvmrc`. Machine default is Node 16, which can't run Next 15.
