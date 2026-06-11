@@ -33,11 +33,11 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
       </label>
 
       <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-        Source
-        <select name="source" defaultValue={source} className={selectClass}>
-          <option value="">All sources</option>
-          <option value="REMOTEOK">RemoteOK</option>
-          <option value="REMOTIVE">Remotive</option>
+        Sort
+        <select name="sort" defaultValue={filters.sort} className={selectClass}>
+          <option value="recent">Newest</option>
+          <option value="score">Best match</option>
+          <option value="title">Title A–Z</option>
         </select>
       </label>
 
@@ -58,10 +58,21 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
           defaultValue={filters.minScore?.toString() ?? ""}
           className={selectClass}
         >
-          <option value="">Any score</option>
-          <option value="70">70+</option>
-          <option value="50">50+</option>
-          <option value="30">30+</option>
+          <option value="30">Matches (30+)</option>
+          <option value="50">Strong (50+)</option>
+          <option value="70">Top (70+)</option>
+          <option value="">Show all</option>
+        </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+        Source
+        <select name="source" defaultValue={source} className={selectClass}>
+          <option value="">All sources</option>
+          <option value="REMOTEOK">RemoteOK</option>
+          <option value="REMOTIVE">Remotive</option>
+          <option value="WEWORKREMOTELY">WeWorkRemotely</option>
+          <option value="HACKERNEWS">Hacker News</option>
         </select>
       </label>
 
@@ -76,15 +87,6 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
           <option value="SAVED">Saved</option>
           <option value="APPLIED">Applied</option>
           <option value="NOT_INTERESTED">Not interested</option>
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-        Sort
-        <select name="sort" defaultValue={filters.sort} className={selectClass}>
-          <option value="recent">Newest</option>
-          <option value="score">Best match</option>
-          <option value="title">Title A–Z</option>
         </select>
       </label>
 
