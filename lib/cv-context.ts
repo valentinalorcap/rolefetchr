@@ -38,6 +38,11 @@ function loadCv(): string {
   return cachedCv;
 }
 
+/** The CV text the scoring is based on (from cv-context.md). */
+export function getCvText(): string {
+  return loadCv();
+}
+
 /** Read the scoring config, seeding the default rubric on first use. */
 export async function getScoringConfig() {
   const existing = await prisma.scoringConfig.findUnique({ where: { id: 1 } });

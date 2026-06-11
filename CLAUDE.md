@@ -65,7 +65,7 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 2. Filters specific to her EOR-EU profile (Madrid-based, mid-level fullstack TS)
 3. Saved/Applied/Not-Interested workflow
 4. In-app daily digest — the **Today** view (`/today`): jobs first seen in the last 48h, sorted by CV fit. (Replaced the email digest — Valentina prefers to pull/review herself; see memory `no-email-digest`.)
-5. **MCP server** (`/api/mcp`, bearer-authed via `MCP_TOKEN`): an external agent that knows Valentina well can both **feed** the pipeline (`add_job` a LinkedIn/etc. posting we can't scrape; `recent_matches`) and **tune** it (`get_scoring_config`, `update_scoring_config` to edit the rubric + candidate context, `rescore_all`). Scoring quality improves as that agent injects better context.
+5. **MCP server** (`/api/mcp`, bearer-authed via `MCP_TOKEN`): a rich tool surface so an external agent that knows Valentina well can drive the app. **Read**: `search_jobs`, `get_job`, `recent_matches`, `stats`, `get_cv`, `get_scoring_config`. **Write/act**: `add_job` (a LinkedIn/etc. posting we can't scrape), `set_job_action` (manage the saved/applied pipeline), `update_scoring_config` (edit rubric + candidate context), `rescore_all`. Scoring quality improves as that agent injects better context.
 
 ## Decision log
 - **Node 22 (lts/jod)** for the project, pinned in `.nvmrc`. Machine default is Node 16, which can't run Next 15.
