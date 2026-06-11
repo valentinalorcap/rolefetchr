@@ -22,10 +22,10 @@ const SOURCE_LABEL: Record<Source, string> = {
 
 export function JobCard({ job }: { job: JobWithRelations }) {
   return (
-    <Card className="transition-colors hover:border-foreground/20">
+    <Card className="min-w-0 transition-colors hover:border-foreground/20">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-base leading-snug">
+          <CardTitle className="min-w-0 break-words text-base leading-snug">
             <Link href={`/jobs/${job.id}`} className="hover:underline">
               {job.title}
             </Link>
@@ -35,7 +35,7 @@ export function JobCard({ job }: { job: JobWithRelations }) {
             <Badge variant="secondary">{SOURCE_LABEL[job.source]}</Badge>
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="break-words text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{job.company}</span>
           {job.location ? <span> · {job.location}</span> : null}
           {job.salary ? <span> · {job.salary}</span> : null}
@@ -43,7 +43,7 @@ export function JobCard({ job }: { job: JobWithRelations }) {
       </CardHeader>
 
       <CardContent>
-        <p className="line-clamp-2 text-sm text-muted-foreground">
+        <p className="line-clamp-2 break-words text-sm text-muted-foreground">
           {snippet(job.description)}
         </p>
         {job.tags.length > 0 ? (
