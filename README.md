@@ -49,6 +49,10 @@ claude mcp add --transport http job-matchmaker \
 
 Claude Desktop: add a remote MCP connector with the same URL and `Authorization` header.
 
+## Email-in
+
+For boards without an API (LinkedIn, Welcome to the Jungle, Jobgether…), their **email job alerts** become a source. A Google Apps Script (`scripts/gmail-job-alerts.gs`) running in your own Gmail forwards labeled alert emails to `POST /api/email-ingest`, which extracts the jobs with Claude, dedupes, ingests, and scores them — no domain, OAuth project, or app password required. Setup is in the script's header (~10 min, one time). The endpoint is authed with `CRON_SECRET`.
+
 ## Status
 
 Built phase by phase per `PLAN.md`. See `CLAUDE.md` for architecture.
