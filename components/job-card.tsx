@@ -19,6 +19,8 @@ const SOURCE_LABEL: Record<Source, string> = {
   WEWORKREMOTELY: "WeWorkRemotely",
   HACKERNEWS: "Hacker News",
   MANUAL: "Manual",
+  HIMALAYAS: "Himalayas",
+  JSEARCH: "JSearch",
 };
 
 export function JobCard({ job }: { job: JobWithRelations }) {
