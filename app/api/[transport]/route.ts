@@ -2,6 +2,7 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { addManualJob } from "@/lib/manual-ingest";
+import { getScoringConfig, updateScoringConfig } from "@/lib/cv-context";
 
 // Prisma + the Anthropic SDK need the Node runtime; scoring takes a few seconds.
 export const runtime = "nodejs";
@@ -83,6 +84,98 @@ const mcpHandler = createMcpHandler(
               text: lines.length
                 ? lines.join("\n")
                 : `No jobs scored ${minScore}+ yet.`,
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "get_scoring_config",
+      {
+        title: "Get scoring config",
+        description:
+          "Read the current scoring rubric and extra candidate context used to score jobs against the CV. Read this before editing so you can refine it rather than overwrite blindly.",
+        inputSchema: {},
+      },
+      async () => {
+        const cfg = await getScoringConfig();
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `=== RUBRIC ===\n${cfg.rubric}\n\n` +
+                `=== CANDIDATE CONTEXT ===\n${cfg.candidateContext ?? "(none)"}\n\n` +
+                `(updated ${cfg.updatedAt.toISOString()})`,
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "update_scoring_config",
+      {
+        title: "Update scoring config",
+        description:
+          "Update the scoring rubric and/or the extra candidate context (e.g. work-authorization, preferences, deal-breakers). Both are optional and partial — pass only what you want to change. Takes effect on the next scoring run; call rescore_all to re-score existing jobs. The rubric should keep instructing the model to return score/reasoning/matchedSkills/gaps.",
+        inputSchema: {
+          rubric: z
+            .string()
+            .optional()
+            .describe("Full replacement rubric text."),
+          candidateContext: z
+            .string()
+            .optional()
+            .describe("Extra context about the candidate to inform scoring."),
+        },
+      },
+      async ({ rubric, candidateContext }) => {
+        if (rubric === undefined && candidateContext === undefined) {
+          return {
+            content: [{ type: "text", text: "Nothing to update." }],
+            isError: true,
+          };
+        }
+        await updateScoringConfig({ rubric, candidateContext });
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Scoring config updated${rubric ? " (rubric)" : ""}${candidateContext !== undefined ? " (candidateContext)" : ""}. New jobs use it immediately; call rescore_all to re-score existing ones.`,
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "rescore_all",
+      {
+        title: "Re-score all jobs",
+        description:
+          "Clear every existing CV-fit score so all jobs get re-scored with the current rubric by the background scorer (over the next runs). Use after changing the rubric or candidate context. Costs API credits — confirm intent.",
+        inputSchema: {
+          confirm: z
+            .boolean()
+            .describe("Must be true to actually clear scores."),
+        },
+      },
+      async ({ confirm }) => {
+        if (!confirm) {
+          return {
+            content: [
+              { type: "text", text: "Not confirmed — no scores cleared." },
+            ],
+          };
+        }
+        const { count } = await prisma.jobScore.deleteMany({});
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Cleared ${count} scores. The background scorer will re-score them with the current rubric over the next runs.`,
             },
           ],
         };
