@@ -59,6 +59,16 @@ model JobAction {
   updatedAt DateTime     @updatedAt
 }
 
+// Singleton (id = 1). The scoring rubric + extra candidate context, editable at
+// runtime (e.g. by an external agent over MCP) so scoring can be tuned without a
+// deploy. Read by the scorer on every run.
+model ScoringConfig {
+  id               Int      @id @default(1)
+  rubric           String   @db.Text
+  candidateContext String?  @db.Text
+  updatedAt        DateTime @updatedAt
+}
+
 model IngestionRun {
   id          String    @id @default(cuid())
   source      Source
