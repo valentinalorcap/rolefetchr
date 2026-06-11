@@ -6,7 +6,7 @@ name: Cron jobs
 on:
   schedule:
     - cron: "0 6 * * *" # ingest — daily 06:00 UTC
-    - cron: "0 * * * *" # score — hourly (drains the scoring backlog)
+    - cron: "*/30 * * * *" # score — every 30 min (drains the scoring backlog)
   workflow_dispatch:
     inputs:
       job:
@@ -30,7 +30,7 @@ jobs:
             "$APP_URL/api/cron/ingest"
 
   score:
-    if: github.event.schedule == '0 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job != 'ingest')
+    if: github.event.schedule == '*/30 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.job != 'ingest')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger score

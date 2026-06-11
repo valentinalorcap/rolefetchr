@@ -125,7 +125,7 @@ export default async function JobDetail({
         Apply on {SOURCE_LABEL[job.source]} ↗
       </a>
 
-      <article className="mt-8 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+      <article className="mt-8 whitespace-pre-line break-words text-sm leading-relaxed text-foreground/90">
         {stripHtml(job.description)}
       </article>
     </main>
