@@ -21,6 +21,7 @@ const SOURCE_LABEL: Record<Source, string> = {
   MANUAL: "Manual",
   HIMALAYAS: "Himalayas",
   JSEARCH: "JSearch",
+  EMAIL: "Email",
 };
 
 export function JobCard({ job }: { job: JobWithRelations }) {
