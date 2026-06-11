@@ -7,7 +7,8 @@ import { ScoreBadge } from "@/components/score-badge";
 import { JobActions } from "@/components/job-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { relativeTime, stripHtml } from "@/lib/format";
+import { relativeTime } from "@/lib/format";
+import { sanitizeDescription } from "@/lib/sanitize";
 
 const SOURCE_LABEL: Record<Source, string> = {
   REMOTEOK: "RemoteOK",
@@ -125,9 +126,12 @@ export default async function JobDetail({
         Apply on {SOURCE_LABEL[job.source]} ↗
       </a>
 
-      <article className="mt-8 whitespace-pre-line break-words text-sm leading-relaxed text-foreground/90">
-        {stripHtml(job.description)}
-      </article>
+      <article
+        className="prose prose-invert prose-sm mt-8 max-w-none break-words prose-headings:font-semibold prose-a:text-foreground"
+        dangerouslySetInnerHTML={{
+          __html: sanitizeDescription(job.description),
+        }}
+      />
     </main>
   );
 }
