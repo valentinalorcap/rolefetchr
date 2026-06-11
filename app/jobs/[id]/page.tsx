@@ -18,6 +18,7 @@ const SOURCE_LABEL: Record<Source, string> = {
   MANUAL: "Manual",
   HIMALAYAS: "Himalayas",
   JSEARCH: "JSearch",
+  EMAIL: "Email",
 };
 
 export default async function JobDetail({

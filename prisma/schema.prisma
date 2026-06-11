@@ -87,6 +87,7 @@ enum Source {
   MANUAL
   HIMALAYAS
   JSEARCH
+  EMAIL
 }
 
 enum ActionStatus {
