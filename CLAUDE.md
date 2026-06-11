@@ -3,7 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Current state
-Phases 0–4 done (scaffold, ingestion, browsing UI, AI scoring, saved/applied actions). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions. Next up: Phase 5 (more sources + polish) per `PLAN.md`.
+Phases 0–5 done (scaffold, ingestion, browsing UI, AI scoring, saved/applied actions, 4 sources + mobile polish). On the default branch via per-phase PRs. Live on Vercel (graphite dark theme); crons run via GitHub Actions (ingest daily, score every 30 min). Next up: Phase 6 (email digest via Resend — needs `RESEND_API_KEY`) per `PLAN.md`.
+
+Sources live: RemoteOK + Remotive (JSON), WeWorkRemotely (RSS, two category feeds), Hacker News "Who's hiring" (Algolia API, remote-only comments).
 
 **Environment gotcha:** the machine's default Node is v16 (too old for Next 15). This project needs Node 22 — pinned in `.nvmrc`. Every shell must `nvm use` (or prepend `~/.nvm/versions/node/v22.22.2/bin` to PATH) before running npm/npx, or builds fail cryptically.
 
