@@ -58,10 +58,10 @@ export function JobFilters({ filters }: { filters: JobFilters }) {
           defaultValue={filters.minScore?.toString() ?? ""}
           className={selectClass}
         >
-          <option value="">Any score</option>
-          <option value="70">70+</option>
-          <option value="50">50+</option>
-          <option value="30">30+</option>
+          <option value="30">Matches (30+)</option>
+          <option value="50">Strong (50+)</option>
+          <option value="70">Top (70+)</option>
+          <option value="">Show all</option>
         </select>
       </label>
 

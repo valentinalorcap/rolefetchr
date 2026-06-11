@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export const PAGE_SIZE = 50;
 
+// Default relevance floor: hide jobs that clearly don't fit (and unscored ones)
+// unless the user explicitly asks to "show all". Keeps the views to real matches.
+export const DEFAULT_MIN_SCORE = 30;
+
 export type SortKey = "recent" | "title" | "score";
 export type FreshKey = "24h" | "48h" | "7d";
 
@@ -40,7 +44,16 @@ export function parseJobFilters(params: RawParams): JobFilters {
   const fresh = first(params.fresh);
   const sort = first(params.sort);
   const take = Number.parseInt(first(params.take) ?? "", 10);
-  const minScore = Number.parseInt(first(params.minScore) ?? "", 10);
+
+  // Absent → default floor. Explicit "" or "0" → null (show everything).
+  const rawMin = first(params.minScore);
+  let minScore: number | null;
+  if (rawMin === undefined) {
+    minScore = DEFAULT_MIN_SCORE;
+  } else {
+    const n = Number.parseInt(rawMin, 10);
+    minScore = Number.isFinite(n) && n > 0 ? n : null;
+  }
 
   const validStatuses = new Set(Object.values(ActionStatus));
   const rawStatus = first(params.status)?.toUpperCase();
@@ -54,7 +67,7 @@ export function parseJobFilters(params: RawParams): JobFilters {
     keyword: first(params.keyword)?.trim() || null,
     fresh: fresh === "24h" || fresh === "48h" || fresh === "7d" ? fresh : null,
     remoteOnly: first(params.remote) === "true",
-    minScore: Number.isFinite(minScore) && minScore > 0 ? minScore : null,
+    minScore,
     status,
     sort: sort === "title" || sort === "score" ? sort : "recent",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
@@ -75,6 +88,9 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   // minScore implies "has a score at least this high" — unscored jobs drop out.
   if (filters.minScore !== null) {
     where.score = { is: { score: { gte: filters.minScore } } };
+  } else if (filters.sort === "score") {
+    // Best-match ranks scored jobs only; keep unscored out of this sort.
+    where.score = { isNot: null };
   }
 
   if (filters.status) {
@@ -102,7 +118,8 @@ function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
     case "title":
       return { title: "asc" };
     case "score":
-      // Highest score first; unscored jobs sort last (null relation).
+      // Highest score first. Unscored jobs are excluded from this sort in
+      // buildWhere (you can't rank by a match that hasn't been computed).
       return { score: { score: "desc" } };
     default:
       return { postedAt: "desc" };
@@ -149,11 +166,13 @@ export function getJobById(id: string) {
 export async function getFreshJobs(
   hours = 48,
   limit = 40,
+  minScore: number = DEFAULT_MIN_SCORE,
 ): Promise<JobWithRelations[]> {
   const since = new Date(Date.now() - hours * 3600_000);
   return prisma.job.findMany({
     where: {
       fetchedAt: { gte: since },
+      score: { is: { score: { gte: minScore } } },
       NOT: { action: { is: { status: ActionStatus.NOT_INTERESTED } } },
     },
     orderBy: [{ score: { score: "desc" } }, { fetchedAt: "desc" }],

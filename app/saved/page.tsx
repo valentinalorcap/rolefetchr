@@ -4,7 +4,13 @@ import { JobGrid } from "@/components/job-grid";
 export const metadata = { title: "Saved · job-matchmaker" };
 
 export default async function SavedPage() {
-  const filters = parseJobFilters({ status: "SAVED", sort: "score", take: "200" });
+  // minScore "0" disables the relevance floor — show everything you saved.
+  const filters = parseJobFilters({
+    status: "SAVED",
+    sort: "score",
+    take: "200",
+    minScore: "0",
+  });
   const { jobs, total } = await getJobs(filters);
 
   return (
