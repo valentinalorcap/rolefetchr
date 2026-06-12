@@ -59,6 +59,15 @@ export default async function JobDetail({
         </time>
       </div>
 
+      {job.score && !job.score.eligible ? (
+        <div className="mt-4">
+          <Badge className="border-rose-500/40 bg-rose-500/15 font-medium text-rose-300">
+            ⚠ Not eligible — requires relocation, on-site, or a work
+            permit/residency outside Spain
+          </Badge>
+        </div>
+      ) : null}
+
       <div className="mt-4">
         <JobActions jobId={job.id} status={job.action?.status ?? null} />
       </div>

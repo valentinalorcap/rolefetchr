@@ -6,9 +6,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// How many jobs to score per invocation. Keep small to stay within maxDuration
-// (~6s/job observed) and to bound per-run Anthropic cost; the hourly cron
-// drains the backlog over time.
+// Max Sonnet scorings per invocation — keeps each run under maxDuration
+// (~6s/job) and bounds per-run cost. scoreBatch also title-filters obvious
+// non-matches for free (no model call), so a run can clear more than this.
 const BATCH_SIZE = 6;
 
 function isAuthorized(req: Request): boolean {
