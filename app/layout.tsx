@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { SiteNav } from "@/components/site-nav";
+import { Sidebar } from "@/components/sidebar";
 
 export const metadata: Metadata = {
   title: "job-matchmaker",
@@ -15,8 +15,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="antialiased">
-        <SiteNav />
-        {children}
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
       </body>
     </html>
   );
