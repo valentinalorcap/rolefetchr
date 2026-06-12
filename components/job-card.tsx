@@ -1,89 +1,78 @@
 import Link from "next/link";
-import type { Source } from "@prisma/client";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "@/components/score-badge";
+import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
 import type { JobWithRelations } from "@/lib/jobs";
-import { relativeTime, snippet } from "@/lib/format";
-
-const SOURCE_LABEL: Record<Source, string> = {
-  REMOTEOK: "RemoteOK",
-  REMOTIVE: "Remotive",
-  WEWORKREMOTELY: "WeWorkRemotely",
-  HACKERNEWS: "Hacker News",
-  MANUAL: "Manual",
-  HIMALAYAS: "Himalayas",
-  JSEARCH: "JSearch",
-  EMAIL: "Email",
-};
+import { sourceMeta } from "@/lib/source-meta";
+import { relativeTime } from "@/lib/format";
 
 export function JobCard({ job }: { job: JobWithRelations }) {
+  const meta = sourceMeta(job.source, job.sourceLabel);
+  const chips =
+    job.score && job.score.matchedSkills.length > 0
+      ? job.score.matchedSkills
+      : job.tags;
+  const notEligible = job.score ? !job.score.eligible : false;
+
   return (
-    <Card className="min-w-0 transition-colors hover:border-foreground/20">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="min-w-0 break-words text-base leading-snug">
-            <Link href={`/jobs/${job.id}`} className="hover:underline">
-              {job.title}
-            </Link>
-          </CardTitle>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {job.score ? <ScoreBadge score={job.score.score} /> : null}
-            <Badge variant="secondary">
-              {job.sourceLabel ?? SOURCE_LABEL[job.source]}
-            </Badge>
-          </div>
-        </div>
-        <div className="break-words text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{job.company}</span>
-          {job.location ? <span> · {job.location}</span> : null}
-          {job.salary ? <span> · {job.salary}</span> : null}
-        </div>
-        {job.score && !job.score.eligible ? (
-          <Badge className="w-fit border-rose-500/40 bg-rose-500/15 font-medium text-rose-300">
-            ⚠ Not eligible — location / work permit
-          </Badge>
-        ) : null}
-      </CardHeader>
-
-      <CardContent>
-        <p className="line-clamp-2 break-words text-sm text-muted-foreground">
-          {snippet(job.description)}
-        </p>
-        {job.tags.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {job.tags.slice(0, 6).map((tag) => (
-              <Badge key={tag} variant="outline" className="font-normal">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-      </CardContent>
-
-      <CardFooter className="flex-col items-stretch gap-3">
-        <JobActions jobId={job.id} status={job.action?.status ?? null} />
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <time dateTime={job.postedAt.toISOString()}>
-            {relativeTime(job.postedAt)}
-          </time>
-          <a
-            href={job.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground hover:underline"
+    <div className="flex flex-col overflow-hidden rounded-2xl bg-card transition-colors hover:bg-accent">
+      <div className="flex items-start gap-3 px-4 pt-4">
+        <SourceIcon source={job.source} sourceLabel={job.sourceLabel} />
+        <div className="min-w-0 flex-1">
+          <Link
+            href={`/jobs/${job.id}`}
+            className="line-clamp-2 break-words text-[17px] font-semibold leading-snug hover:underline"
           >
-            View original ↗
-          </a>
+            {job.title}
+          </Link>
+          <div className="mt-0.5 break-words text-sm text-muted-foreground">
+            {job.company}
+            {job.location ? ` · ${job.location}` : ""}
+            {job.salary ? ` · ${job.salary}` : ""}
+          </div>
         </div>
-      </CardFooter>
-    </Card>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {job.score ? <ScoreBadge score={job.score.score} /> : null}
+          <Link
+            href={`/jobs/${job.id}`}
+            aria-label="Open job"
+            className="text-xl leading-none text-muted-foreground/50"
+          >
+            ›
+          </Link>
+        </div>
+      </div>
+
+      {chips.length > 0 ? (
+        <div className="mt-auto flex flex-wrap content-start items-start gap-1.5 px-4 pb-3.5 pt-5">
+          {chips.slice(0, 6).map((c) => (
+            <span
+              key={c}
+              className="max-w-[250px] truncate rounded-lg bg-secondary px-2 py-1 text-xs text-foreground/80"
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-auto" />
+      )}
+
+      {notEligible ? (
+        <div
+          className="flex items-center gap-2 border-t border-border px-4 py-2.5 text-[13px] font-semibold"
+          style={{ color: "#e3909e", backgroundColor: "rgba(227,144,158,.07)" }}
+        >
+          ⚠️ Not eligible — location / work permit
+        </div>
+      ) : null}
+
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2.5 border-t border-border px-4">
+        <JobActions jobId={job.id} status={job.action?.status ?? null} />
+        <span className="truncate text-xs text-muted-foreground">
+          {meta.label} · {relativeTime(job.postedAt)}
+        </span>
+      </div>
+    </div>
   );
 }
