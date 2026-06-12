@@ -296,6 +296,26 @@ Repo público, demo live, README pulido. Portfolio-ready.
 
 ---
 
+## Phase 8 — Auth (login gate)
+
+Cerrar la app detrás de login para privacidad. El pipeline de búsqueda (saved/applied, reasoning del score, CV) deja de ser público. **Single-tenant a propósito**: una sola persona (allowlist de emails), no multi-usuario.
+
+### Decisiones
+- **Auth.js (NextAuth v5)** con provider **GitHub** — gratis, edge-compatible, natural para portfolio.
+- **Sesión JWT**, sin adapter de DB (no se persiste usuario; no hace falta para single-tenant).
+- **Allowlist por email** (`ALLOWED_EMAILS`, coma-separado) en el callback `signIn` — un GitHub válido fuera de la lista se rechaza.
+- **`middleware.ts`** protege todas las páginas; excluye `/api/*` (crons con `CRON_SECRET`, MCP con `MCP_TOKEN`, email-ingest y las rutas de NextAuth se autentican por su cuenta), `/signin` y assets.
+- **`/signin`** propio con el estilo del rediseño (gradiente + card). El layout oculta la sidebar sin sesión.
+- **Sign out** en el pie de la sidebar.
+
+### Env nuevas
+`AUTH_SECRET` (openssl rand -hex 32), `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `ALLOWED_EMAILS`. La OAuth app de GitHub usa callback `https://<dominio>/api/auth/callback/github` (y `http://localhost:3000/api/auth/callback/github` para local).
+
+### Fuera de scope (futuro)
+Multi-tenant real (CV/JobScore/JobAction/ScoringConfig por usuario) — es un refactor del modelo de datos, no se hace ahora. Queda en el roadmap.
+
+---
+
 ## Roadmap post-v1 (backlog)
 
 - [ ] Auth multi-usuario (cada uno con su CV)
