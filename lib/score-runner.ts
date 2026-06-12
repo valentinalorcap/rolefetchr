@@ -62,6 +62,7 @@ export async function scoreBatch(
         data: {
           jobId: job.id,
           score: clampScore(result.score),
+          eligible: result.eligible,
           reasoning: result.reasoning,
           matchedSkills: result.matchedSkills,
           gaps: result.gaps,

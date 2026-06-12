@@ -43,6 +43,9 @@ model JobScore {
   jobId         String   @unique
   job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   score         Int // 0-100
+  // False when the role requires something Valentina can't provide (relocation,
+  // on-site, visa/residency/work-auth outside Spain) — a hard blocker.
+  eligible      Boolean  @default(true)
   reasoning     String   @db.Text
   matchedSkills String[]
   gaps          String[]

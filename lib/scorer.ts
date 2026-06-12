@@ -13,6 +13,11 @@ const MAX_DESCRIPTION_CHARS = 6000;
 
 export const ScoreSchema = z.object({
   score: z.number().min(0).max(100),
+  eligible: z
+    .boolean()
+    .describe(
+      "False if the role requires something Valentina can't provide: relocation / living in a specific city, on-site or hybrid, or a visa/residency/work-authorization in a country other than Spain. A hard blocker — when false, the score must also be very low.",
+    ),
   reasoning: z.string(),
   matchedSkills: z.array(z.string()),
   gaps: z.array(z.string()),

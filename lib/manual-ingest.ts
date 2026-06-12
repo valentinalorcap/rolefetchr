@@ -62,6 +62,7 @@ export async function addManualJob(input: ManualJobInput): Promise<{
     create: {
       jobId: job.id,
       score: clampScore(result.score),
+      eligible: result.eligible,
       reasoning: result.reasoning,
       matchedSkills: result.matchedSkills,
       gaps: result.gaps,
@@ -69,6 +70,7 @@ export async function addManualJob(input: ManualJobInput): Promise<{
     },
     update: {
       score: clampScore(result.score),
+      eligible: result.eligible,
       reasoning: result.reasoning,
       matchedSkills: result.matchedSkills,
       gaps: result.gaps,
