@@ -46,6 +46,11 @@ export function JobCard({ job }: { job: JobWithRelations }) {
           {job.location ? <span> · {job.location}</span> : null}
           {job.salary ? <span> · {job.salary}</span> : null}
         </div>
+        {job.score && !job.score.eligible ? (
+          <Badge className="w-fit border-rose-500/40 bg-rose-500/15 font-medium text-rose-300">
+            ⚠ Not eligible — location / work permit
+          </Badge>
+        ) : null}
       </CardHeader>
 
       <CardContent>

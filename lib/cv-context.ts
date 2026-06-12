@@ -9,10 +9,17 @@ const DEFAULT_RUBRIC = `You evaluate how well a remote job fits Valentina, a mid
 
 Valentina works fully remote as an independent contractor (via an EOR, Deel), based in Madrid (CET). She is NOT looking to relocate and cannot take roles that require employment authorization she doesn't hold. Treat work-eligibility as a gating factor:
 
-- Eligibility / location (most important):
-  - HIGH: fully remote AND open worldwide / "anywhere" / hires international contractors / EOR- or contractor-friendly / no specific work-authorization requirement.
-  - LOW: requires authorization to work in a specific country she can't satisfy (e.g. "must be authorized to work in the US", US W2 only, EU/US citizens only, "must reside in <country>"), onsite/hybrid, relocation, or a security clearance.
-  - Timezone: CET overlap is easy; roles demanding near-full US-hours overlap are a drawback but not disqualifying for a contractor.
+- Eligibility / location (MOST IMPORTANT — a hard blocker):
+  - ELIGIBLE (set "eligible": true): fully remote AND open worldwide / "anywhere" / hires international contractors / EOR- or contractor-friendly / no specific work-authorization or residency requirement.
+  - NOT ELIGIBLE (set "eligible": false AND score very low, at most ~15, regardless of how good the stack is): the role requires something she cannot provide —
+    · must live in / be based in / relocate to a specific city, country, or region;
+    · on-site or hybrid;
+    · "remote, but must reside in <country/region>" or "remote within <country>";
+    · requires a visa, work permit, residency, or right-to-work / authorization in a country OTHER than Spain;
+    · requires citizenship of a specific country, or a security clearance;
+    · only hires local employees (e.g. US W2 only, "EU citizens only", "must be authorized to work in the US").
+    These are deal-breakers for a Madrid-based contractor — flag them and score them low even if the tech is a perfect match.
+  - Timezone: CET overlap is easy; roles demanding near-full US-hours overlap are a drawback but, on their own, not a hard blocker.
 - Stack match: TypeScript/Angular/React/Node/NestJS = high; Ruby/Go/Python/PHP = medium (transferable); Java/.NET enterprise, pure data/ML, pure devops = low.
 - Seniority fit: mid / mid-senior / "3-5 years" = high; junior/entry = medium; staff/principal/lead-only or "8+ years" = lower.
 - Domain interest: AI / developer tooling / B2B SaaS = high; fintech/healthcare = medium; crypto/gambling/defense/adtech = low.
@@ -22,7 +29,8 @@ Be calibrated and honest — most generic listings should land 30-60. Reserve 80
 
 Return:
 - score: integer 0-100
-- reasoning: 2-3 sentences on the fit, grounded in the CV and the job.
+- eligible: true if she can actually take the role; false if it requires relocation, on-site/hybrid, or a visa/residency/work-authorization outside Spain (see above). When false, the score must be very low (≤15).
+- reasoning: 2-3 sentences on the fit, grounded in the CV and the job. If not eligible, say why explicitly.
 - matchedSkills: concrete skills/requirements in the job that match her CV.
 - gaps: concrete requirements in the job she does not clearly meet.`;
 

@@ -63,7 +63,7 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 **UI** is server components reading the DB directly. Filters/sort/pagination are URL search-param driven (`?source=`, `?keyword=`, `?fresh=`, `?minScore=`, `?status=`). User actions go through server actions writing `JobAction`.
 
 ## Differentiators (what makes this NOT just another aggregator)
-1. AI scoring against personal CV (0-100 + reasoning + matched skills + gaps)
+1. AI scoring against personal CV (0-100 + reasoning + matched skills + gaps), plus an **`eligible` flag**: jobs that require relocation, on-site, or a visa/residency/work-authorization outside Spain (even subtle signals like a US W-2/401k) are flagged "Not eligible" and scored ≤15 regardless of stack fit.
 2. Filters specific to her EOR-EU profile (Madrid-based, mid-level fullstack TS)
 3. Saved/Applied/Not-Interested workflow
 4. In-app daily digest — the **Today** view (`/today`): jobs first seen in the last 48h, sorted by CV fit. (Replaced the email digest — Valentina prefers to pull/review herself; see memory `no-email-digest`.)
