@@ -159,6 +159,29 @@ export function getJobById(id: string) {
 }
 
 /**
+ * The "Best matches" landing: eligible jobs scored 50+, best first, split into
+ * Top (70+) and Worth a look (50-69). Hides not-interested and not-eligible.
+ */
+export async function getBestMatches(): Promise<{
+  top: JobWithRelations[];
+  worth: JobWithRelations[];
+}> {
+  const jobs = await prisma.job.findMany({
+    where: {
+      score: { is: { score: { gte: 50 }, eligible: true } },
+      NOT: { action: { is: { status: ActionStatus.NOT_INTERESTED } } },
+    },
+    orderBy: { score: { score: "desc" } },
+    take: 100,
+    include: { score: true, action: true },
+  });
+  return {
+    top: jobs.filter((j) => (j.score?.score ?? 0) >= 70),
+    worth: jobs.filter((j) => (j.score?.score ?? 0) < 70),
+  };
+}
+
+/**
  * The "Today" digest: jobs first ingested within `hours`, best-fit first.
  * Uses fetchedAt (when we first saw it) — "new to review" — not the source's
  * posted date. Hides not-interested; unscored jobs sort after scored ones.

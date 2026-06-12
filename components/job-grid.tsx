@@ -10,14 +10,14 @@ export function JobGrid({
 }) {
   if (jobs.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
       {jobs.map((job) => (
         <JobCard key={job.id} job={job} />
       ))}

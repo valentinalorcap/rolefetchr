@@ -60,13 +60,13 @@ The system is two decoupled background pipelines feeding a read-heavy UI, not a 
 
 **Data model** (`Job` is the hub; see full Prisma schema in `PLAN.md` Phase 0): `Job` 1:1 optional `JobScore`, `Job` 1:1 optional `JobAction` (SAVED/APPLIED/NOT_INTERESTED/INTERVIEW/REJECTED — drives the saved/applied tracker UI), plus `IngestionRun` for per-run logging. Both relations cascade-delete with the job.
 
-**UI** is server components reading the DB directly. Filters/sort/pagination are URL search-param driven (`?source=`, `?keyword=`, `?fresh=`, `?minScore=`, `?status=`). User actions go through server actions writing `JobAction`.
+**UI** is server components reading the DB directly, in an **Apple Health dark** look (true-black, `#1C1C1E` cards, left **sidebar** with nav + Sources list, top color-wash gradient). Routes: `/` = **Best matches** (`getBestMatches` — eligible jobs ≥50, sectioned Top/Worth-a-look), `/jobs` = full browse with the horizontal filter bar + pagination, `/saved`, `/applied`, `/jobs/[id]`. (The old `/today` is gone.) Cards: source monogram (`lib/source-meta` + `SourceIcon`), white title, a cool-palette score pill (`ScoreBadge`: teal 70+/periwinkle 50-69/slate 30-49/rose blocked) + `/100`, matched-skill chips, the not-eligible flag, and `JobActions`. Filters/sort/pagination stay URL search-param driven (`?source=`, `?keyword=`, `?fresh=`, `?minScore=`, `?status=`); user actions go through server actions writing `JobAction`.
 
 ## Differentiators (what makes this NOT just another aggregator)
 1. AI scoring against personal CV (0-100 + reasoning + matched skills + gaps), plus an **`eligible` flag**: jobs that require relocation, on-site, or a visa/residency/work-authorization outside Spain (even subtle signals like a US W-2/401k) are flagged "Not eligible" and scored ≤15 regardless of stack fit.
 2. Filters specific to her EOR-EU profile (Madrid-based, mid-level fullstack TS)
 3. Saved/Applied/Not-Interested workflow
-4. In-app daily digest — the **Today** view (`/today`): jobs first seen in the last 48h, sorted by CV fit. (Replaced the email digest — Valentina prefers to pull/review herself; see memory `no-email-digest`.)
+4. **Best matches** landing (`/`): curated, eligible jobs scored 50+, sectioned into Top (70+) and Worth a look (50-69). (Replaced both the email digest and the old Today view — Valentina pulls/reviews herself; see memory `no-email-digest`.)
 5. **MCP server** (`/api/mcp`, bearer-authed via `MCP_TOKEN`): a rich tool surface so an external agent that knows Valentina well can drive the app. **Read**: `search_jobs`, `get_job`, `recent_matches`, `stats`, `get_cv`, `get_scoring_config`. **Write/act**: `add_job` (a LinkedIn/etc. posting we can't scrape), `set_job_action` (manage the saved/applied pipeline), `update_scoring_config` (edit rubric + candidate context), `rescore_all`. Scoring quality improves as that agent injects better context.
 
 ## Decision log
