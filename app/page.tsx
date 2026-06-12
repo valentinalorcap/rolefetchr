@@ -1,65 +1,51 @@
-import Link from "next/link";
-import { getJobs, parseJobFilters, PAGE_SIZE } from "@/lib/jobs";
-import { JobGrid } from "@/components/job-grid";
-import { JobFilters } from "@/components/job-filters";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { getBestMatches, type JobWithRelations } from "@/lib/jobs";
+import { PageShell } from "@/components/page-shell";
+import { JobCard } from "@/components/job-card";
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
-function buildLoadMoreHref(params: SearchParams, nextTake: number): string {
-  const qs = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (key === "take") continue;
-    const v = Array.isArray(value) ? value[0] : value;
-    if (v) qs.set(key, v);
-  }
-  qs.set("take", String(nextTake));
-  return `/?${qs.toString()}`;
+function Section({
+  title,
+  sub,
+  jobs,
+}: {
+  title: string;
+  sub: string;
+  jobs: JobWithRelations[];
+}) {
+  if (jobs.length === 0) return null;
+  return (
+    <section className="mb-8">
+      <h2 className="text-[21px] font-extrabold tracking-tight">{title}</h2>
+      <p className="mt-0.5 mb-3.5 text-[13.5px] text-muted-foreground">{sub}</p>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {jobs.map((j) => (
+          <JobCard key={j.id} job={j} />
+        ))}
+      </div>
+    </section>
+  );
 }
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  const params = await searchParams;
-  const filters = parseJobFilters(params);
-  const { jobs, hasMore, total } = await getJobs(filters);
+export default async function BestMatches() {
+  const { top, worth } = await getBestMatches();
+  const total = top.length + worth.length;
+  const best = top[0]?.score?.score ?? worth[0]?.score?.score;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Remote jobs</h1>
-        <p className="text-sm text-muted-foreground">
-          Aggregated from multiple sources and scored against your CV.
-        </p>
-      </header>
-
-      <div className="mb-6">
-        <JobFilters filters={filters} />
-      </div>
-
-      <p className="mb-4 text-sm text-muted-foreground">
-        {total} {total === 1 ? "job" : "jobs"}
-        {filters.keyword ? ` matching “${filters.keyword}”` : ""}
-      </p>
-
-      <JobGrid
-        jobs={jobs}
-        emptyMessage="No jobs match these filters. Try clearing them or widening the time range."
-      />
-
-      {hasMore ? (
-        <div className="mt-8 flex justify-center">
-          <Link
-            href={buildLoadMoreHref(params, filters.take + PAGE_SIZE)}
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            Load more
-          </Link>
+    <PageShell
+      title="Best matches"
+      subtitle={`${total} strong ${total === 1 ? "match" : "matches"} · 50+ and eligible${best ? ` · best ${best}/100` : ""}`}
+    >
+      {total === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+          No matches 50+ yet. New jobs are scored continuously — open Jobs to
+          browse everything.
         </div>
-      ) : null}
-    </main>
+      ) : (
+        <>
+          <Section title="Top matches" sub="70+ fit" jobs={top} />
+          <Section title="Worth a look" sub="50–69 fit" jobs={worth} />
+        </>
+      )}
+    </PageShell>
   );
 }

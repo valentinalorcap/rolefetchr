@@ -1,35 +1,39 @@
 import { cn } from "@/lib/utils";
 
-// Color-coded fit score. Tuned for the graphite theme (translucent fills).
-function toneFor(score: number): string {
-  if (score >= 70) return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
-  if (score >= 50) return "bg-amber-500/15 text-amber-300 border-amber-500/30";
-  return "bg-rose-500/15 text-rose-300 border-rose-500/30";
+// Cool, cohesive fit palette (not a green/yellow/red traffic light).
+function tone(score: number): { color: string; bg: string } {
+  if (score >= 70) return { color: "#5ed3c0", bg: "rgba(94,211,192,.16)" }; // teal
+  if (score >= 50) return { color: "#7aa8ff", bg: "rgba(122,168,255,.16)" }; // periwinkle
+  if (score >= 30) return { color: "#c7c7cc", bg: "rgba(255,255,255,.10)" }; // slate
+  return { color: "#e3909e", bg: "rgba(227,144,158,.15)" }; // dim rose (low / blocked)
 }
 
+/** Score as a tinted pill (the number) with a gray "/100" beside it. */
 export function ScoreBadge({
   score,
-  size = "sm",
+  size = "md",
   className,
 }: {
   score: number;
-  size?: "sm" | "lg";
+  size?: "sm" | "md";
   className?: string;
 }) {
+  const t = tone(score);
   return (
     <span
-      title={`CV fit score: ${score}/100`}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-md border font-semibold tabular-nums",
-        size === "lg" ? "px-2.5 py-1 text-base" : "px-1.5 py-0.5 text-xs",
-        toneFor(score),
-        className,
-      )}
+      className={cn("inline-flex items-baseline gap-1.5", className)}
+      title={`CV fit: ${score}/100`}
     >
-      {score}
-      <span className={cn("font-normal opacity-60", size === "lg" ? "text-sm" : "text-[10px]")}>
-        /100
+      <span
+        className={cn(
+          "rounded-lg font-bold tabular-nums",
+          size === "sm" ? "px-2 py-0.5 text-sm" : "px-3 py-1 text-lg",
+        )}
+        style={{ color: t.color, backgroundColor: t.bg }}
+      >
+        {score}
       </span>
+      <span className="text-sm font-semibold text-muted-foreground">/100</span>
     </span>
   );
 }
