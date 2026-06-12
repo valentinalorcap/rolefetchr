@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Source } from "@prisma/client";
 import { SourceIcon } from "@/components/source-icon";
 import { sourceMeta } from "@/lib/source-meta";
@@ -26,7 +27,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 overflow-y-auto border-r border-sidebar-border bg-sidebar px-3.5 py-7 md:block">
+    <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-3.5 py-7 md:flex">
       <div className="px-2.5 pb-4 text-[25px] font-extrabold tracking-tight">
         job-matchmaker
       </div>
@@ -69,6 +70,15 @@ export function Sidebar() {
           </Link>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: "/signin" })}
+        className="mt-auto flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-[14.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <span className="w-5 text-center">↪</span>
+        Sign out
+      </button>
     </aside>
   );
 }
