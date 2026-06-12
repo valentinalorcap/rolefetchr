@@ -11,6 +11,10 @@ const allowlist = (process.env.ALLOWED_EMAILS ?? "")
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [GitHub],
+  // We only ever run behind our own Vercel domain; trust the deployment host so
+  // the session check works under `next start` too (Vercel auto-trusts, but
+  // being explicit avoids UntrustedHost surprises).
+  trustHost: true,
   pages: { signIn: "/signin" },
   callbacks: {
     // Reject anyone whose GitHub email isn't on the allowlist. GitHub hides
@@ -39,10 +43,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
       return !!email && allowlist.includes(email);
-    },
-    // Drives the middleware: a request is authorized only with a session.
-    authorized({ auth }) {
-      return !!auth?.user;
     },
   },
 });
