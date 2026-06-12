@@ -15,7 +15,7 @@ export function JobCard({ job }: { job: JobWithRelations }) {
   const notEligible = job.score ? !job.score.eligible : false;
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-card transition-colors hover:bg-accent">
+    <div className="flex flex-col overflow-hidden rounded-2xl bg-card transition-colors hover:bg-accent">
       <div className="flex items-start gap-3 px-4 pt-4">
         <SourceIcon source={job.source} sourceLabel={job.sourceLabel} />
         <div className="min-w-0 flex-1">
@@ -31,34 +31,32 @@ export function JobCard({ job }: { job: JobWithRelations }) {
             {job.salary ? ` · ${job.salary}` : ""}
           </div>
         </div>
-        <Link
-          href={`/jobs/${job.id}`}
-          aria-label="Open job"
-          className="text-xl leading-none text-muted-foreground/50"
-        >
-          ›
-        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {job.score ? <ScoreBadge score={job.score.score} /> : null}
+          <Link
+            href={`/jobs/${job.id}`}
+            aria-label="Open job"
+            className="text-xl leading-none text-muted-foreground/50"
+          >
+            ›
+          </Link>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
-        {job.score ? (
-          <ScoreBadge score={job.score.score} />
-        ) : (
-          <span className="text-sm text-muted-foreground">Not scored yet</span>
-        )}
-        {chips.length > 0 ? (
-          <div className="ml-auto flex max-w-[62%] flex-wrap justify-end gap-1.5">
-            {chips.slice(0, 4).map((c) => (
-              <span
-                key={c}
-                className="rounded-lg bg-secondary px-2 py-1 text-xs text-foreground/80"
-              >
-                {c}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      {chips.length > 0 ? (
+        <div className="mt-auto flex flex-wrap content-start items-start gap-1.5 px-4 pb-3.5 pt-5">
+          {chips.slice(0, 6).map((c) => (
+            <span
+              key={c}
+              className="max-w-[250px] truncate rounded-lg bg-secondary px-2 py-1 text-xs text-foreground/80"
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-auto" />
+      )}
 
       {notEligible ? (
         <div
@@ -69,9 +67,9 @@ export function JobCard({ job }: { job: JobWithRelations }) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2.5 border-t border-border px-4">
         <JobActions jobId={job.id} status={job.action?.status ?? null} />
-        <span className="shrink-0 text-xs text-muted-foreground">
+        <span className="truncate text-xs text-muted-foreground">
           {meta.label} · {relativeTime(job.postedAt)}
         </span>
       </div>
