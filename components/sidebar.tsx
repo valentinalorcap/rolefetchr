@@ -9,10 +9,12 @@ import { sourceMeta } from "@/lib/source-meta";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Best matches", icon: "🚀" },
+  { href: "/today", label: "Hoy", icon: "📅" },
   { href: "/jobs", label: "Jobs", icon: "💼" },
+  { href: "/", label: "Best matches", icon: "🚀" },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },
+  { href: "/archived", label: "Archived", icon: "🗄️" },
 ];
 
 const SOURCES = Object.values(Source);

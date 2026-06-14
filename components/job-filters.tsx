@@ -17,7 +17,7 @@ export function JobFilters({
     // key forces a remount when filters change so the uncontrolled inputs reset
     // (otherwise "Clear" navigates but the selects keep their old values).
     <form
-      key={`${filters.keyword}|${source}|${filters.fresh}|${filters.minScore}|${filters.status}|${filters.sort}`}
+      key={`${filters.keyword}|${source}|${filters.fresh}|${filters.ingested}|${filters.minScore}|${filters.status}|${filters.sort}`}
       method="get"
       action={action}
       className="flex flex-wrap items-center gap-2"
@@ -30,15 +30,24 @@ export function JobFilters({
         className={`${control} w-56`}
       />
       <select name="sort" defaultValue={filters.sort} className={control} aria-label="Sort">
-        <option value="recent">Newest</option>
+        <option value="recent">Newest first</option>
+        <option value="oldest">Oldest first</option>
         <option value="score">Best match</option>
+        <option value="score_asc">Lowest match</option>
         <option value="title">Title A–Z</option>
+        <option value="title_desc">Title Z–A</option>
       </select>
-      <select name="fresh" defaultValue={filters.fresh ?? ""} className={control} aria-label="Posted">
-        <option value="">Any time</option>
-        <option value="24h">Last 24h</option>
-        <option value="48h">Last 48h</option>
-        <option value="7d">Last 7 days</option>
+      <select name="fresh" defaultValue={filters.fresh ?? ""} className={control} aria-label="Published">
+        <option value="">Published: any</option>
+        <option value="24h">Published: 24h</option>
+        <option value="48h">Published: 48h</option>
+        <option value="7d">Published: 7 days</option>
+      </select>
+      <select name="ingested" defaultValue={filters.ingested ?? ""} className={control} aria-label="Ingested">
+        <option value="">Ingested: any</option>
+        <option value="24h">Ingested: 24h</option>
+        <option value="48h">Ingested: 48h</option>
+        <option value="7d">Ingested: 7 days</option>
       </select>
       <select
         name="minScore"
@@ -66,7 +75,7 @@ export function JobFilters({
         <option value="">Active</option>
         <option value="SAVED">Saved</option>
         <option value="APPLIED">Applied</option>
-        <option value="NOT_INTERESTED">Not interested</option>
+        <option value="NOT_INTERESTED">Archived</option>
       </select>
       <button
         type="submit"
