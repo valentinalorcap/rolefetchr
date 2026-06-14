@@ -76,16 +76,3 @@ export async function updateScoringConfig(input: {
     },
   });
 }
-
-/**
- * Stable system prompt for scoring: current rubric + CV + any extra candidate
- * context. Cached per request via prompt caching; rubric edits invalidate it
- * (expected). Async because the rubric now lives in the DB.
- */
-export async function buildScoringSystemPrompt(): Promise<string> {
-  const cfg = await getScoringConfig();
-  const extra = cfg.candidateContext?.trim()
-    ? `\n\n=== ADDITIONAL CONTEXT ABOUT THE CANDIDATE ===\n\n${cfg.candidateContext.trim()}`
-    : "";
-  return `${cfg.rubric}\n\n=== CANDIDATE CV (source of truth) ===\n\n${loadCv()}${extra}`;
-}

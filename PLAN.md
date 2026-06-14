@@ -316,6 +316,22 @@ Multi-tenant real (CV/JobScore/JobAction/ScoringConfig por usuario) — es un re
 
 ---
 
+## Phase 9 — Scoring fuera de la app (sin IA en el server)
+
+Para bajar el costo de tokens, la app deja de evaluar: solo *recupera* jobs. El scoring lo hace el agente propio de Valentina por MCP.
+
+### Decisiones
+- **Se saca el SDK de Anthropic por completo.** Borrados: `lib/scorer.ts`, `score-runner.ts`, `title-filter.ts`, `email-ingest.ts`, `/api/cron/score`, el schedule de score en GitHub Actions, y la dep `@anthropic-ai/sdk`.
+- **Scoring por MCP:** el agente llama `get_unscored_jobs` (jobs sin score con todo el contenido en JSON), scorea contra `get_cv` + `get_scoring_config`, y escribe con `set_job_score` (score/eligible/reasoning/matchedSkills/gaps; `model` = "agent").
+- **`add_job` ya no scorea** — agrega el job sin puntaje; el agente lo scorea después.
+- **Email-in pasa al agente:** `/api/email-ingest` guarda el HTML crudo en la tabla nueva `PendingEmail` (sin IA). El agente: `list_pending_emails` → extrae → `add_job` → `mark_email_processed`. El Apps Script de Gmail no cambia (mismo payload).
+- **El rubric sobrevive como guía** (`ScoringConfig`), editable por `update_scoring_config`; ya no es un prompt que mande la app.
+
+### Resultado
+La app no consume tokens. El costo de IA lo paga el agente de Valentina, que además scorea con el contexto que tiene de ella. Migración: `add_pending_email`.
+
+---
+
 ## Roadmap post-v1 (backlog)
 
 - [ ] Auth multi-usuario (cada uno con su CV)

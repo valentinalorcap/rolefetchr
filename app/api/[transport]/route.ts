@@ -6,7 +6,7 @@ import { addManualJob } from "@/lib/manual-ingest";
 import { getCvText, getScoringConfig, updateScoringConfig } from "@/lib/cv-context";
 import { stripHtml } from "@/lib/format";
 
-// Prisma + the Anthropic SDK need the Node runtime; scoring takes a few seconds.
+// Prisma needs the Node runtime.
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -17,7 +17,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Add a job",
         description:
-          "Add a job from a site job-matchmaker can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). It is deduped by URL, scored 0-100 against Valentina's CV with the same rubric as every other source, and shown in the app. Returns the CV-fit score and reasoning.",
+          "Add a job from a site job-matchmaker can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). Deduped by URL. The app does NOT score — the job is added unscored; score it yourself with set_job_score (read get_scoring_config + get_cv for the rubric first). Returns the job id.",
         inputSchema: {
           platform: z
             .string()
@@ -38,19 +38,116 @@ const mcpHandler = createMcpHandler(
         },
       },
       async (input) => {
-        const { jobId, isNew, score } = await addManualJob(input);
+        const { jobId, isNew } = await addManualJob(input);
         const verb = isNew ? "Added" : "Updated";
         return {
           content: [
             {
               type: "text",
               text:
-                `${verb} "${input.title}" at ${input.company} (${input.platform}).\n` +
-                `CV fit: ${Math.round(score.score)}/100\n` +
-                `Reasoning: ${score.reasoning}\n` +
-                `Matched: ${score.matchedSkills.join(", ") || "—"}\n` +
-                `Gaps: ${score.gaps.join(", ") || "—"}\n` +
-                `View: /jobs/${jobId}`,
+                `${verb} "${input.title}" at ${input.company} (${input.platform}). [${jobId}]\n` +
+                `Unscored — call set_job_score with this id to score it. View: /jobs/${jobId}`,
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "get_unscored_jobs",
+      {
+        title: "Get unscored jobs",
+        description:
+          "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Score each one with set_job_score; read get_scoring_config + get_cv first so your scoring matches the rubric. This is the main loop for keeping matches up to date now that the app no longer scores with an LLM.",
+        inputSchema: {
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(50)
+            .optional()
+            .describe("Max jobs to return (default 20)."),
+          descriptionChars: z
+            .number()
+            .int()
+            .min(200)
+            .max(8000)
+            .optional()
+            .describe("Cap on description length per job (default 4000)."),
+        },
+      },
+      async ({ limit = 20, descriptionChars = 4000 }) => {
+        const jobs = await prisma.job.findMany({
+          where: { score: null },
+          orderBy: { postedAt: "desc" },
+          take: limit,
+        });
+        const remaining = await prisma.job.count({ where: { score: null } });
+        const payload = jobs.map((j) => ({
+          id: j.id,
+          title: j.title,
+          company: j.company,
+          source: j.sourceLabel ?? j.source,
+          location: j.location,
+          salary: j.salary,
+          tags: j.tags,
+          url: j.sourceUrl,
+          postedAt: j.postedAt.toISOString(),
+          description: stripHtml(j.description).slice(0, descriptionChars),
+        }));
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { returned: payload.length, remainingUnscored: remaining, jobs: payload },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "set_job_score",
+      {
+        title: "Set job score",
+        description:
+          "Write (or overwrite) the CV-fit score for a job you scored yourself. Use the rubric from get_scoring_config: score 0-100, eligible=false (and score ≤15) when the role requires relocation / on-site / a visa or work-authorization outside Spain. This is how scores get into the app now.",
+        inputSchema: {
+          jobId: z.string(),
+          score: z.number().int().min(0).max(100),
+          eligible: z
+            .boolean()
+            .describe(
+              "False if the role requires something Valentina can't provide (relocation, on-site/hybrid, visa/residency/work-auth outside Spain). When false, score must be ≤15.",
+            ),
+          reasoning: z.string().describe("2-3 sentences grounding the score."),
+          matchedSkills: z.array(z.string()).optional(),
+          gaps: z.array(z.string()).optional(),
+          model: z
+            .string()
+            .optional()
+            .describe('Label for who scored it; defaults to "agent".'),
+        },
+      },
+      async ({ jobId, score, eligible, reasoning, matchedSkills = [], gaps = [], model = "agent" }) => {
+        const job = await prisma.job.findUnique({ where: { id: jobId }, select: { id: true, title: true } });
+        if (!job) {
+          return { content: [{ type: "text", text: `No job with id ${jobId}.` }], isError: true };
+        }
+        await prisma.jobScore.upsert({
+          where: { jobId },
+          create: { jobId, score, eligible, reasoning, matchedSkills, gaps, model },
+          update: { score, eligible, reasoning, matchedSkills, gaps, model, evaluatedAt: new Date() },
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Scored "${job.title}" ${score}/100${eligible ? "" : " (not eligible)"}. [${jobId}]`,
             },
           ],
         };
@@ -155,9 +252,9 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "rescore_all",
       {
-        title: "Re-score all jobs",
+        title: "Clear all scores",
         description:
-          "Clear every existing CV-fit score so all jobs get re-scored with the current rubric by the background scorer (over the next runs). Use after changing the rubric or candidate context. Costs API credits — confirm intent.",
+          "Clear every existing CV-fit score so all jobs become unscored. Use after changing the rubric or candidate context, then re-score them yourself via get_unscored_jobs → set_job_score (the app no longer scores automatically). Confirm intent.",
         inputSchema: {
           confirm: z
             .boolean()
@@ -177,10 +274,74 @@ const mcpHandler = createMcpHandler(
           content: [
             {
               type: "text",
-              text: `Cleared ${count} scores. The background scorer will re-score them with the current rubric over the next runs.`,
+              text: `Cleared ${count} scores. All jobs are now unscored — re-score them via get_unscored_jobs → set_job_score.`,
             },
           ],
         };
+      },
+    );
+
+    server.registerTool(
+      "list_pending_emails",
+      {
+        title: "List pending emails",
+        description:
+          "List forwarded job-alert emails that haven't been processed yet, with their raw HTML. Extract the job postings from each (title, company, apply URL, location), add them with add_job (platform = the email's provider), then call mark_email_processed so they aren't returned again. This is how email-sourced jobs (LinkedIn, Jobgether, etc.) get into the app.",
+        inputSchema: {
+          limit: z.number().int().min(1).max(20).optional().describe("Max emails (default 5)."),
+          htmlChars: z
+            .number()
+            .int()
+            .min(1000)
+            .max(200_000)
+            .optional()
+            .describe("Cap on HTML length per email (default 60000)."),
+        },
+      },
+      async ({ limit = 5, htmlChars = 60_000 }) => {
+        const emails = await prisma.pendingEmail.findMany({
+          where: { processedAt: null },
+          orderBy: { receivedAt: "asc" },
+          take: limit,
+        });
+        const remaining = await prisma.pendingEmail.count({ where: { processedAt: null } });
+        const payload = emails.map((e) => ({
+          id: e.id,
+          provider: e.provider,
+          subject: e.subject,
+          receivedAt: e.receivedAt.toISOString(),
+          html: e.html.slice(0, htmlChars),
+        }));
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                { returned: payload.length, remainingPending: remaining, emails: payload },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "mark_email_processed",
+      {
+        title: "Mark email processed",
+        description:
+          "Mark a pending email as processed (after you've extracted its jobs with add_job) so list_pending_emails won't return it again.",
+        inputSchema: { id: z.string() },
+      },
+      async ({ id }) => {
+        const existing = await prisma.pendingEmail.findUnique({ where: { id }, select: { id: true } });
+        if (!existing) {
+          return { content: [{ type: "text", text: `No pending email with id ${id}.` }], isError: true };
+        }
+        await prisma.pendingEmail.update({ where: { id }, data: { processedAt: new Date() } });
+        return { content: [{ type: "text", text: `Marked email ${id} processed.` }] };
       },
     );
 
