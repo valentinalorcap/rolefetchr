@@ -2,9 +2,9 @@
  * job-matchmaker — Gmail "email-in" forwarder (Google Apps Script).
  *
  * Forwards labeled job-alert emails (LinkedIn, Welcome to the Jungle, Jobgether,
- * etc.) to job-matchmaker, which extracts the jobs with Claude, dedupes, ingests,
- * and scores them. No domain / OAuth project / app password needed — this runs in
- * your own Google account.
+ * etc.) to job-matchmaker, which stores them verbatim. An external agent then
+ * extracts the jobs over MCP and adds + scores them. No domain / OAuth project /
+ * app password needed — this runs in your own Google account.
  *
  * SETUP (one time, ~10 min):
  *  1. In Gmail, create a label "JobAlerts".
