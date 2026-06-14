@@ -496,7 +496,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Set job action",
         description:
-          "Manage the pipeline for a job: mark it SAVED / APPLIED / NOT_INTERESTED / INTERVIEW / REJECTED with an optional note. Use status CLEAR to remove any action.",
+          "Manage the pipeline for a job: mark it SAVED / APPLIED / NOT_INTERESTED / INTERVIEW / REJECTED with an optional note. NOT_INTERESTED archives the job (it moves to the Archived tab and is hidden from the main views). Use status CLEAR to remove any action.",
         inputSchema: {
           jobId: z.string(),
           status: z

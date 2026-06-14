@@ -30,6 +30,9 @@ export function JobCard({ job }: { job: JobWithRelations }) {
             {job.location ? ` · ${job.location}` : ""}
             {job.salary ? ` · ${job.salary}` : ""}
           </div>
+          <div className="mt-0.5 text-xs text-muted-foreground/70">
+            Posted {relativeTime(job.postedAt)}
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {job.score ? <ScoreBadge score={job.score.score} /> : null}
@@ -70,7 +73,7 @@ export function JobCard({ job }: { job: JobWithRelations }) {
       <div className="flex h-11 shrink-0 items-center justify-between gap-2.5 border-t border-border px-4">
         <JobActions jobId={job.id} status={job.action?.status ?? null} />
         <span className="truncate text-xs text-muted-foreground">
-          {meta.label} · {relativeTime(job.postedAt)}
+          {meta.label} · added {relativeTime(job.fetchedAt)}
         </span>
       </div>
     </div>

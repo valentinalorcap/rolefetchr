@@ -7,8 +7,26 @@ export const PAGE_SIZE = 50;
 // unless the user explicitly asks to "show all". Keeps the views to real matches.
 export const DEFAULT_MIN_SCORE = 30;
 
-export type SortKey = "recent" | "title" | "score";
+// Each sort dimension has both directions.
+export type SortKey =
+  | "recent" // newest published first
+  | "oldest" // oldest published first
+  | "title" // A→Z
+  | "title_desc" // Z→A
+  | "score" // best match first
+  | "score_asc"; // lowest match first
 export type FreshKey = "24h" | "48h" | "7d";
+
+const SORT_KEYS = new Set<SortKey>([
+  "recent",
+  "oldest",
+  "title",
+  "title_desc",
+  "score",
+  "score_asc",
+]);
+
+const isScoreSort = (sort: SortKey) => sort === "score" || sort === "score_asc";
 
 export type JobWithRelations = Prisma.JobGetPayload<{
   include: { score: true; action: true };
@@ -17,13 +35,18 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 export interface JobFilters {
   sources: Source[];
   keyword: string | null;
-  fresh: FreshKey | null;
+  fresh: FreshKey | null; // published within (postedAt)
+  ingested: FreshKey | null; // ingested within (fetchedAt)
   remoteOnly: boolean;
   minScore: number | null;
   status: ActionStatus | null;
   sort: SortKey;
   take: number;
 }
+
+const FRESH_KEYS = new Set<FreshKey>(["24h", "48h", "7d"]);
+const asFresh = (v: string | undefined): FreshKey | null =>
+  v && FRESH_KEYS.has(v as FreshKey) ? (v as FreshKey) : null;
 
 const FRESH_HOURS: Record<FreshKey, number> = { "24h": 24, "48h": 48, "7d": 168 };
 
@@ -41,7 +64,6 @@ export function parseJobFilters(params: RawParams): JobFilters {
     .map((s) => s.trim().toUpperCase())
     .filter((s): s is Source => validSources.has(s as Source));
 
-  const fresh = first(params.fresh);
   const sort = first(params.sort);
   const take = Number.parseInt(first(params.take) ?? "", 10);
 
@@ -65,11 +87,12 @@ export function parseJobFilters(params: RawParams): JobFilters {
   return {
     sources,
     keyword: first(params.keyword)?.trim() || null,
-    fresh: fresh === "24h" || fresh === "48h" || fresh === "7d" ? fresh : null,
+    fresh: asFresh(first(params.fresh)),
+    ingested: asFresh(first(params.ingested)),
     remoteOnly: first(params.remote) === "true",
     minScore,
     status,
-    sort: sort === "title" || sort === "score" ? sort : "recent",
+    sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "recent",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
 }
@@ -85,12 +108,17 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     where.postedAt = { gte: since };
   }
 
+  if (filters.ingested) {
+    const since = new Date(Date.now() - FRESH_HOURS[filters.ingested] * 3600_000);
+    where.fetchedAt = { gte: since };
+  }
+
   // minScore implies "has a score at least this high" — unscored jobs drop out.
   if (filters.minScore !== null) {
     where.score = { is: { score: { gte: filters.minScore } } };
-  } else if (filters.sort === "score" && !filters.status) {
-    // Best-match ranks scored jobs only; keep unscored out of this sort. But on
-    // a status view (Saved/Applied) we want every job you flagged, scored or
+  } else if (isScoreSort(filters.sort) && !filters.status) {
+    // Match sorts rank scored jobs only; keep unscored out of those sorts. But
+    // on a status view (Saved/Applied) we want every job you flagged, scored or
     // not — those pages must never hide an unscored saved/applied job.
     where.score = { isNot: null };
   }
@@ -117,14 +145,19 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
 
 function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
   switch (sort) {
+    case "oldest":
+      return { postedAt: "asc" };
     case "title":
       return { title: "asc" };
+    case "title_desc":
+      return { title: "desc" };
     case "score":
-      // Highest score first. Unscored jobs are excluded from this sort in
-      // buildWhere (you can't rank by a match that hasn't been computed).
-      return { score: { score: "desc" } };
+    case "score_asc":
+      // Match sorts. Unscored jobs are excluded from these in buildWhere (you
+      // can't rank by a match that hasn't been computed).
+      return { score: { score: sort === "score" ? "desc" : "asc" } };
     default:
-      return { postedAt: "desc" };
+      return { postedAt: "desc" }; // "recent"
   }
 }
 
@@ -184,24 +217,19 @@ export async function getBestMatches(): Promise<{
 }
 
 /**
- * The "Today" digest: jobs first ingested within `hours`, best-fit first.
- * Uses fetchedAt (when we first saw it) — "new to review" — not the source's
- * posted date. Hides not-interested; unscored jobs sort after scored ones.
+ * The "Today" view: every job first ingested today (by fetchedAt), newest
+ * first. No score floor — shows all of today's intake regardless of score (or
+ * no score yet). Hides archived (not-interested) jobs.
  */
-export async function getFreshJobs(
-  hours = 48,
-  limit = 40,
-  minScore: number = DEFAULT_MIN_SCORE,
-): Promise<JobWithRelations[]> {
-  const since = new Date(Date.now() - hours * 3600_000);
+export async function getTodayJobs(): Promise<JobWithRelations[]> {
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
   return prisma.job.findMany({
     where: {
-      fetchedAt: { gte: since },
-      score: { is: { score: { gte: minScore } } },
+      fetchedAt: { gte: startOfToday },
       NOT: { action: { is: { status: ActionStatus.NOT_INTERESTED } } },
     },
-    orderBy: [{ score: { score: "desc" } }, { fetchedAt: "desc" }],
-    take: limit,
+    orderBy: { fetchedAt: "desc" },
     include: { score: true, action: true },
   });
 }
