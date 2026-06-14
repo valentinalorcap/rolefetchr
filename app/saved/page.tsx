@@ -1,30 +1,26 @@
-import { getJobs, parseJobFilters } from "@/lib/jobs";
-import { PageShell } from "@/components/page-shell";
-import { JobGrid } from "@/components/job-grid";
+import { JobListView } from "@/components/job-list-view";
+
+type SearchParams = Record<string, string | string[] | undefined>;
 
 export const metadata = { title: "Saved · job-matchmaker" };
 
-export default async function SavedPage() {
-  // minScore "0" disables the relevance floor — show everything you saved,
-  // scored or not. Sort by recency (not score) so unscored saved jobs still
-  // appear and don't get jammed to the top by null-first ordering.
-  const filters = parseJobFilters({
-    status: "SAVED",
-    sort: "recent",
-    take: "200",
-    minScore: "0",
-  });
-  const { jobs, total } = await getJobs(filters);
+export default async function SavedPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
 
   return (
-    <PageShell
+    <JobListView
+      searchParams={params}
+      action="/saved"
       title="Saved"
-      subtitle={`${total} saved ${total === 1 ? "job" : "jobs"}`}
-    >
-      <JobGrid
-        jobs={jobs}
-        emptyMessage="Nothing saved yet. Hit “Save” on a job to keep it here."
-      />
-    </PageShell>
+      subtitle={(total) => `${total} saved ${total === 1 ? "job" : "jobs"}`}
+      emptyMessage="Nothing saved yet. Hit “Save” on a job to keep it here."
+      // Status locked to SAVED; default to show-all + newest so you can re-sort.
+      forceStatus="SAVED"
+      defaults={{ minScore: "0", sort: "recent" }}
+    />
   );
 }
