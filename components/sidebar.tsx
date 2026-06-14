@@ -9,9 +9,9 @@ import { sourceMeta } from "@/lib/source-meta";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/today", label: "Hoy", icon: "📅" },
+  { href: "/", label: "Hoy", icon: "📅" },
   { href: "/jobs", label: "Jobs", icon: "💼" },
-  { href: "/", label: "Best matches", icon: "🚀" },
+  { href: "/best", label: "Best matches", icon: "🚀" },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },
   { href: "/archived", label: "Archived", icon: "🗄️" },
