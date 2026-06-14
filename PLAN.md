@@ -334,6 +334,7 @@ La app no consume tokens. El costo de IA lo paga el agente de Valentina, que ade
 
 ## Roadmap post-v1 (backlog)
 
+- [ ] **Loading skeleton al navegar entre tabs/sources.** Al apretar una source en la sidebar (`/jobs?source=X`) o cambiar de tab, se re-ejecuta el server component (query a la DB) y quedan ~3s sin feedback visual. Agregar `loading.tsx` con un skeleton de tarjetas (a nivel `app/jobs/loading.tsx` y/o las otras rutas de lista, o un `<Suspense>` alrededor de la grilla) para que muestre el esqueleto mientras carga.
 - [ ] Auth multi-usuario (cada uno con su CV)
 - [ ] Browser extension para mark "I applied to this" desde LinkedIn/Greenhouse
 - [ ] Más sources: Welcome to the Jungle (si encuentra forma), Otta, etc.
