@@ -7,9 +7,15 @@ const control =
 export function JobFilters({
   filters,
   action = "/jobs",
+  hideStatus = false,
+  hideIngested = false,
 }: {
   filters: Filters;
   action?: string;
+  // Tabs that fix a dimension hide its control (and enforce it server-side):
+  // e.g. Saved/Applied/Archived hide Status; Hoy hides Ingested.
+  hideStatus?: boolean;
+  hideIngested?: boolean;
 }) {
   const source = filters.sources[0] ?? "";
 
@@ -43,12 +49,14 @@ export function JobFilters({
         <option value="48h">Published: 48h</option>
         <option value="7d">Published: 7 days</option>
       </select>
-      <select name="ingested" defaultValue={filters.ingested ?? ""} className={control} aria-label="Ingested">
-        <option value="">Ingested: any</option>
-        <option value="24h">Ingested: 24h</option>
-        <option value="48h">Ingested: 48h</option>
-        <option value="7d">Ingested: 7 days</option>
-      </select>
+      {hideIngested ? null : (
+        <select name="ingested" defaultValue={filters.ingested ?? ""} className={control} aria-label="Ingested">
+          <option value="">Ingested: any</option>
+          <option value="24h">Ingested: 24h</option>
+          <option value="48h">Ingested: 48h</option>
+          <option value="7d">Ingested: 7 days</option>
+        </select>
+      )}
       <select
         name="minScore"
         defaultValue={filters.minScore?.toString() ?? ""}
@@ -71,12 +79,14 @@ export function JobFilters({
         <option value="EMAIL">Email alerts</option>
         <option value="MANUAL">Manual</option>
       </select>
-      <select name="status" defaultValue={filters.status ?? ""} className={control} aria-label="Status">
-        <option value="">Active</option>
-        <option value="SAVED">Saved</option>
-        <option value="APPLIED">Applied</option>
-        <option value="NOT_INTERESTED">Archived</option>
-      </select>
+      {hideStatus ? null : (
+        <select name="status" defaultValue={filters.status ?? ""} className={control} aria-label="Status">
+          <option value="">Active</option>
+          <option value="SAVED">Saved</option>
+          <option value="APPLIED">Applied</option>
+          <option value="NOT_INTERESTED">Archived</option>
+        </select>
+      )}
       <button
         type="submit"
         className="h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground"
