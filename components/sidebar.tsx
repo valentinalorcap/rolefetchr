@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Hoy", icon: "📅" },
-  { href: "/jobs", label: "Jobs", icon: "💼" },
   { href: "/best", label: "Best matches", icon: "🚀" },
+  { href: "/jobs", label: "Jobs", icon: "💼" },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },
   { href: "/archived", label: "Archived", icon: "🗄️" },

@@ -1,28 +1,27 @@
-import { getJobs, parseJobFilters } from "@/lib/jobs";
-import { PageShell } from "@/components/page-shell";
-import { JobGrid } from "@/components/job-grid";
+import { JobListView } from "@/components/job-list-view";
+
+type SearchParams = Record<string, string | string[] | undefined>;
 
 export const metadata = { title: "Applied · job-matchmaker" };
 
-export default async function AppliedPage() {
-  // minScore "0" disables the relevance floor — show everything you applied to.
-  const filters = parseJobFilters({
-    status: "APPLIED",
-    sort: "recent",
-    take: "200",
-    minScore: "0",
-  });
-  const { jobs, total } = await getJobs(filters);
+export default async function AppliedPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
 
   return (
-    <PageShell
+    <JobListView
+      searchParams={params}
+      action="/applied"
       title="Applied"
-      subtitle={`${total} ${total === 1 ? "application" : "applications"} tracked`}
-    >
-      <JobGrid
-        jobs={jobs}
-        emptyMessage="No applications tracked yet. Mark a job “Applied” to track it here."
-      />
-    </PageShell>
+      subtitle={(total) =>
+        `${total} ${total === 1 ? "application" : "applications"} tracked`
+      }
+      emptyMessage="No applications tracked yet. Mark a job “Applied” to track it here."
+      forceStatus="APPLIED"
+      defaults={{ minScore: "0", sort: "recent" }}
+    />
   );
 }

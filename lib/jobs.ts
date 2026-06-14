@@ -167,9 +167,20 @@ export interface JobListPage {
   total: number;
 }
 
-/** Fetch a filtered, sorted page of jobs plus whether more exist (for "load more"). */
-export async function getJobs(filters: JobFilters): Promise<JobListPage> {
-  const where = buildWhere(filters);
+/**
+ * Fetch a filtered, sorted page of jobs plus whether more exist (for "load
+ * more"). `base` is a tab-level constraint that the URL filters can't remove
+ * (e.g. "eligible 50+" for Best matches, "ingested today" for Hoy) — it's AND-ed
+ * with the user's filters.
+ */
+export async function getJobs(
+  filters: JobFilters,
+  base?: Prisma.JobWhereInput,
+): Promise<JobListPage> {
+  const userWhere = buildWhere(filters);
+  const where: Prisma.JobWhereInput = base
+    ? { AND: [base, userWhere] }
+    : userWhere;
 
   const [rows, total] = await Promise.all([
     // Fetch one extra to detect a next page without a second count per filter.
@@ -193,43 +204,18 @@ export function getJobById(id: string) {
   });
 }
 
-/**
- * The "Best matches" landing: eligible jobs scored 50+, best first, split into
- * Top (70+) and Worth a look (50-69). Hides not-interested and not-eligible.
- */
-export async function getBestMatches(): Promise<{
-  top: JobWithRelations[];
-  worth: JobWithRelations[];
-}> {
-  const jobs = await prisma.job.findMany({
-    where: {
-      score: { is: { score: { gte: 50 }, eligible: true } },
-      NOT: { action: { is: { status: ActionStatus.NOT_INTERESTED } } },
-    },
-    orderBy: { score: { score: "desc" } },
-    take: 100,
-    include: { score: true, action: true },
-  });
-  return {
-    top: jobs.filter((j) => (j.score?.score ?? 0) >= 70),
-    worth: jobs.filter((j) => (j.score?.score ?? 0) < 70),
-  };
-}
+// Tab-level base constraints (AND-ed with the user's filters in getJobs). These
+// can't be removed via the filter bar — they define what the tab *is*.
 
-/**
- * The "Today" view: every job first ingested today (by fetchedAt), newest
- * first. No score floor — shows all of today's intake regardless of score (or
- * no score yet). Hides archived (not-interested) jobs.
- */
-export async function getTodayJobs(): Promise<JobWithRelations[]> {
+/** Best matches: only scored jobs the agent flagged eligible. The score floor
+ * (default 50+) comes from the filter bar's minScore so it stays adjustable. */
+export const BEST_MATCHES_BASE: Prisma.JobWhereInput = {
+  score: { is: { eligible: true } },
+};
+
+/** Hoy: only jobs first ingested today (by fetchedAt, UTC day start). */
+export function todayBase(): Prisma.JobWhereInput {
   const startOfToday = new Date();
   startOfToday.setUTCHours(0, 0, 0, 0);
-  return prisma.job.findMany({
-    where: {
-      fetchedAt: { gte: startOfToday },
-      NOT: { action: { is: { status: ActionStatus.NOT_INTERESTED } } },
-    },
-    orderBy: { fetchedAt: "desc" },
-    include: { score: true, action: true },
-  });
+  return { fetchedAt: { gte: startOfToday } };
 }
