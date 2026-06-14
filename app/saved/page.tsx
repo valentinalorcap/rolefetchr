@@ -5,10 +5,12 @@ import { JobGrid } from "@/components/job-grid";
 export const metadata = { title: "Saved · job-matchmaker" };
 
 export default async function SavedPage() {
-  // minScore "0" disables the relevance floor — show everything you saved.
+  // minScore "0" disables the relevance floor — show everything you saved,
+  // scored or not. Sort by recency (not score) so unscored saved jobs still
+  // appear and don't get jammed to the top by null-first ordering.
   const filters = parseJobFilters({
     status: "SAVED",
-    sort: "score",
+    sort: "recent",
     take: "200",
     minScore: "0",
   });

@@ -88,8 +88,10 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   // minScore implies "has a score at least this high" — unscored jobs drop out.
   if (filters.minScore !== null) {
     where.score = { is: { score: { gte: filters.minScore } } };
-  } else if (filters.sort === "score") {
-    // Best-match ranks scored jobs only; keep unscored out of this sort.
+  } else if (filters.sort === "score" && !filters.status) {
+    // Best-match ranks scored jobs only; keep unscored out of this sort. But on
+    // a status view (Saved/Applied) we want every job you flagged, scored or
+    // not — those pages must never hide an unscored saved/applied job.
     where.score = { isNot: null };
   }
 
