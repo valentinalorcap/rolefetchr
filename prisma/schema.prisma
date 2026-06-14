@@ -50,7 +50,9 @@ model JobScore {
   matchedSkills String[]
   gaps          String[]
   evaluatedAt   DateTime @default(now())
-  model         String // e.g. "claude-sonnet-4-6"
+  // Who produced the score, e.g. "agent" (an external MCP agent). The app no
+  // longer scores with an LLM — scoring is driven externally over MCP.
+  model         String
 }
 
 model JobAction {
@@ -63,13 +65,28 @@ model JobAction {
 }
 
 // Singleton (id = 1). The scoring rubric + extra candidate context, editable at
-// runtime (e.g. by an external agent over MCP) so scoring can be tuned without a
-// deploy. Read by the scorer on every run.
+// runtime over MCP. The app doesn't score itself; an external agent reads this
+// as guidance (get_scoring_config) to score jobs consistently.
 model ScoringConfig {
   id               Int      @id @default(1)
   rubric           String   @db.Text
   candidateContext String?  @db.Text
   updatedAt        DateTime @updatedAt
+}
+
+// Raw job-alert emails forwarded by the Gmail Apps Script. Stored verbatim (no
+// AI parsing in the app); an external agent fetches them over MCP
+// (list_pending_emails), extracts the jobs itself, adds them (add_job), and
+// marks the email processed (mark_email_processed).
+model PendingEmail {
+  id          String    @id @default(cuid())
+  provider    String // e.g. "LinkedIn", "Jobgether"
+  subject     String?
+  html        String    @db.Text
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([processedAt])
 }
 
 model IngestionRun {
