@@ -12,7 +12,7 @@ const OPTIONS: {
 }[] = [
   { status: "SAVED", label: "Save", activeClass: "border-sky-500/40 bg-sky-500/15 text-sky-300" },
   { status: "APPLIED", label: "Applied", activeClass: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300" },
-  { status: "NOT_INTERESTED", label: "Not interested", activeClass: "border-rose-500/40 bg-rose-500/15 text-rose-300" },
+  { status: "NOT_INTERESTED", label: "Archive", activeClass: "border-rose-500/40 bg-rose-500/15 text-rose-300" },
 ];
 
 /** Save / Applied / Not-interested toggle. Clicking the active state clears it. */
