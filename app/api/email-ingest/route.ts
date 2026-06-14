@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
-import { extractJobsFromEmail, ingestEmailJobs } from "@/lib/email-ingest";
+import { prisma } from "@/lib/prisma";
 
-// Prisma + Anthropic need Node; extraction takes a few seconds.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
-// Same shared secret as the crons (the Apps Script sends it).
+// Cap stored HTML so a runaway email can't bloat a row.
+const MAX_HTML_CHARS = 200_000;
+
+// Same shared secret as the crons (the Gmail Apps Script sends it).
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
+/**
+ * Store a forwarded job-alert email verbatim for an external agent to process.
+ * No AI here — the agent fetches pending emails over MCP (list_pending_emails),
+ * extracts the jobs itself, adds them (add_job), and marks the email processed.
+ */
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,14 +35,14 @@ export async function POST(req: Request) {
   if (!html) {
     return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
   }
-  const provider = (body.provider || "Email").trim();
 
-  try {
-    const jobs = await extractJobsFromEmail(html);
-    const result = await ingestEmailJobs(provider, jobs);
-    return NextResponse.json({ ok: true, provider, ...result });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  }
+  const pending = await prisma.pendingEmail.create({
+    data: {
+      provider: (body.provider || "Email").trim(),
+      subject: body.subject?.trim() || null,
+      html: html.slice(0, MAX_HTML_CHARS),
+    },
+  });
+
+  return NextResponse.json({ ok: true, id: pending.id });
 }
