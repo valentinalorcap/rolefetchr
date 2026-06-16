@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { auth } from "@/auth";
+import { getScope } from "@/lib/scope";
 import { Sidebar } from "@/components/sidebar";
+import { DemoBanner } from "@/components/demo-banner";
 
 export const metadata: Metadata = {
   title: "job-matchmaker",
@@ -13,15 +14,21 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
+  const scope = await getScope();
+  const isDemo = scope?.kind === "demo";
 
   return (
     <html lang="en" className="dark">
       <body className="antialiased">
-        {session ? (
+        {scope ? (
           <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="min-w-0 flex-1">{children}</main>
+            <Sidebar isDemo={isDemo} />
+            <main className="min-w-0 flex-1">
+              {isDemo ? (
+                <DemoBanner label={scope.space.label} message={scope.space.message} />
+              ) : null}
+              {children}
+            </main>
           </div>
         ) : (
           children

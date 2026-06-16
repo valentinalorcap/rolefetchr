@@ -35,6 +35,18 @@ const mcpHandler = createMcpHandler(
             .string()
             .optional()
             .describe("ISO date the job was posted; defaults to now."),
+          demoCode: z
+            .string()
+            .optional()
+            .describe(
+              "Add this job to a demo space (a DemoSpace.code) instead of the owner's real data. Demo jobs are fully isolated. Omit for normal jobs.",
+            ),
+          source: z
+            .nativeEnum(Source)
+            .optional()
+            .describe(
+              'Catalogued source (defaults to MANUAL). For demo data, vary it (REMOTEOK, JSEARCH, EMAIL, …) so the Sources sidebar looks realistic.',
+            ),
         },
       },
       async (input) => {
@@ -58,7 +70,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Get unscored jobs",
         description:
-          "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Score each one with set_job_score; read get_scoring_config + get_cv first so your scoring matches the rubric. This is the main loop for keeping matches up to date now that the app no longer scores with an LLM.",
+          "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Score each one with set_job_score; read get_scoring_config + get_cv first so your scoring matches the rubric. This is the main loop for keeping matches up to date now that the app no longer scores with an LLM. Pass demoCode to score a demo space's jobs.",
         inputSchema: {
           limit: z
             .number()
@@ -74,15 +86,22 @@ const mcpHandler = createMcpHandler(
             .max(8000)
             .optional()
             .describe("Cap on description length per job (default 4000)."),
+          demoCode: z
+            .string()
+            .optional()
+            .describe(
+              "Scope to a demo space (a DemoSpace.code). Omit for the owner's real jobs.",
+            ),
         },
       },
-      async ({ limit = 20, descriptionChars = 4000 }) => {
+      async ({ limit = 20, descriptionChars = 4000, demoCode = null }) => {
+        const where = { score: null, demoCode } as const;
         const jobs = await prisma.job.findMany({
-          where: { score: null },
+          where,
           orderBy: { postedAt: "desc" },
           take: limit,
         });
-        const remaining = await prisma.job.count({ where: { score: null } });
+        const remaining = await prisma.job.count({ where });
         const payload = jobs.map((j) => ({
           id: j.id,
           title: j.title,
@@ -367,10 +386,16 @@ const mcpHandler = createMcpHandler(
             .describe("Only jobs first seen within this many hours."),
           sort: z.enum(["recent", "score"]).optional(),
           limit: z.number().int().min(1).max(100).optional(),
+          demoCode: z
+            .string()
+            .optional()
+            .describe(
+              "Scope to a demo space (a DemoSpace.code). Omit for the owner's real jobs.",
+            ),
         },
       },
-      async ({ query, source, minScore, status, freshHours, sort = "score", limit = 25 }) => {
-        const where: Prisma.JobWhereInput = {};
+      async ({ query, source, minScore, status, freshHours, sort = "score", limit = 25, demoCode = null }) => {
+        const where: Prisma.JobWhereInput = { demoCode };
         if (source) where.source = source;
         if (minScore != null) where.score = { is: { score: { gte: minScore } } };
         if (status) where.action = { is: { status } };
@@ -518,6 +543,98 @@ const mcpHandler = createMcpHandler(
         return {
           content: [{ type: "text", text: `Marked ${jobId} as ${status}${notes ? ` (note saved)` : ""}.` }],
         };
+      },
+    );
+
+    server.registerTool(
+      "create_demo_space",
+      {
+        title: "Create a demo space",
+        description:
+          "Create a shareable, isolated demo of the whole app. Returns an access code to hand to one recipient — anyone with it sees a full, interactive copy of the app scoped only to this space's data (never the owner's data, never the MCP). Load that space's jobs with add_job (demoCode = the code, vary source for realism), then score them with set_job_score (demoCode via get_unscored_jobs). Provide your own `code` or let one be generated.",
+        inputSchema: {
+          label: z
+            .string()
+            .describe("Display name shown in the demo banner (the recipient)."),
+          code: z
+            .string()
+            .min(3)
+            .optional()
+            .describe("The access code. If omitted, one is generated from the label."),
+          message: z
+            .string()
+            .optional()
+            .describe("Optional override for the demo banner copy."),
+        },
+      },
+      async ({ label, code, message }) => {
+        const finalCode =
+          code?.trim() ||
+          `${label.toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 10) || "DEMO"}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const existing = await prisma.demoSpace.findUnique({ where: { code: finalCode }, select: { code: true } });
+        if (existing) {
+          return { content: [{ type: "text", text: `A demo space with code "${finalCode}" already exists.` }], isError: true };
+        }
+        await prisma.demoSpace.create({
+          data: { code: finalCode, label, message: message ?? null },
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Created demo space for "${label}". Access code: ${finalCode}\n` +
+                `Add jobs with add_job (demoCode: "${finalCode}"), then score them with set_job_score.`,
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "list_demo_spaces",
+      {
+        title: "List demo spaces",
+        description: "List every demo space with its access code, label, and job count.",
+        inputSchema: {},
+      },
+      async () => {
+        const spaces = await prisma.demoSpace.findMany({ orderBy: { createdAt: "desc" } });
+        if (spaces.length === 0) {
+          return { content: [{ type: "text", text: "No demo spaces yet." }] };
+        }
+        const lines = await Promise.all(
+          spaces.map(async (s) => {
+            const jobs = await prisma.job.count({ where: { demoCode: s.code } });
+            return `${s.code} · ${s.label} · ${jobs} job${jobs === 1 ? "" : "s"}`;
+          }),
+        );
+        return { content: [{ type: "text", text: lines.join("\n") }] };
+      },
+    );
+
+    server.registerTool(
+      "delete_demo_space",
+      {
+        title: "Delete a demo space",
+        description:
+          "Delete a demo space and all of its jobs (and their scores/actions). Irreversible — confirm intent.",
+        inputSchema: {
+          code: z.string(),
+          confirm: z.boolean().describe("Must be true to actually delete."),
+        },
+      },
+      async ({ code, confirm }) => {
+        if (!confirm) {
+          return { content: [{ type: "text", text: "Not confirmed — nothing deleted." }] };
+        }
+        const space = await prisma.demoSpace.findUnique({ where: { code }, select: { code: true } });
+        if (!space) {
+          return { content: [{ type: "text", text: `No demo space with code ${code}.` }], isError: true };
+        }
+        const { count } = await prisma.job.deleteMany({ where: { demoCode: code } });
+        await prisma.demoSpace.delete({ where: { code } });
+        return { content: [{ type: "text", text: `Deleted demo space ${code} and its ${count} job${count === 1 ? "" : "s"}.` }] };
       },
     );
   },

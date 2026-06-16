@@ -169,18 +169,20 @@ export interface JobListPage {
 
 /**
  * Fetch a filtered, sorted page of jobs plus whether more exist (for "load
- * more"). `base` is a tab-level constraint that the URL filters can't remove
- * (e.g. "eligible 50+" for Best matches, "ingested today" for Hoy) — it's AND-ed
- * with the user's filters.
+ * more"). `demoCode` scopes the query to a tenant (null = the owner's real
+ * jobs); it's always enforced. `base` is a tab-level constraint that the URL
+ * filters can't remove (e.g. "eligible 50+" for Best matches, "ingested today"
+ * for Hoy) — it's AND-ed with the user's filters.
  */
 export async function getJobs(
   filters: JobFilters,
+  demoCode: string | null,
   base?: Prisma.JobWhereInput,
 ): Promise<JobListPage> {
   const userWhere = buildWhere(filters);
-  const where: Prisma.JobWhereInput = base
-    ? { AND: [base, userWhere] }
-    : userWhere;
+  const parts: Prisma.JobWhereInput[] = [{ demoCode }, userWhere];
+  if (base) parts.push(base);
+  const where: Prisma.JobWhereInput = { AND: parts };
 
   const [rows, total] = await Promise.all([
     // Fetch one extra to detect a next page without a second count per filter.
@@ -197,9 +199,11 @@ export async function getJobs(
   return { jobs: hasMore ? rows.slice(0, filters.take) : rows, hasMore, total };
 }
 
-export function getJobById(id: string) {
-  return prisma.job.findUnique({
-    where: { id },
+/** One job by id, scoped: returns null if it doesn't belong to `demoCode`, so a
+ * demo visitor can't open the owner's (or another space's) job by guessing an id. */
+export function getJobById(id: string, demoCode: string | null) {
+  return prisma.job.findFirst({
+    where: { id, demoCode },
     include: { score: true, action: true },
   });
 }

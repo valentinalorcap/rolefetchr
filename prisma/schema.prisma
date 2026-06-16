@@ -30,12 +30,18 @@ model Job {
   postedAt    DateTime
   fetchedAt   DateTime @default(now())
 
+  // Tenant scope. null = the owner's real jobs. A DemoSpace.code value means the
+  // job belongs to that read-but-also-interactive demo space, kept fully
+  // isolated from the owner's data and from other spaces.
+  demoCode    String?
+
   score  JobScore?
   action JobAction?
 
   @@unique([source, externalId])
   @@index([postedAt])
   @@index([fetchedAt])
+  @@index([demoCode])
 }
 
 model JobScore {
@@ -97,6 +103,18 @@ model IngestionRun {
   jobsFetched Int       @default(0)
   jobsNew     Int       @default(0)
   error       String?
+}
+
+// A shareable, isolated demo of the whole app. `code` is the access key handed
+// to a single recipient; anyone with it shares one space (changes are visible
+// to all holders). Jobs in the space carry Job.demoCode = code. The space sees a
+// full, interactive copy of the app scoped to its own data only — never the
+// owner's data, never the MCP.
+model DemoSpace {
+  code      String   @id // the access key
+  label     String // display name shown in the demo banner
+  message   String?  @db.Text // optional override for the demo banner copy
+  createdAt DateTime @default(now())
 }
 
 enum Source {

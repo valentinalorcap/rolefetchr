@@ -15,7 +15,12 @@ export default auth((req) => {
     pathname === "/favicon.ico" ||
     pathname === "/signin";
 
-  if (isPublic || req.auth) return NextResponse.next();
+  // A demo access-code cookie also grants entry (the page revalidates it against
+  // the DB via getScope and redirects if it's stale — edge can't query the DB).
+  // Keep the cookie name in sync with DEMO_COOKIE in lib/scope.ts.
+  const hasDemoCookie = req.cookies.has("demo_code");
+
+  if (isPublic || req.auth || hasDemoCookie) return NextResponse.next();
 
   const url = new URL("/signin", req.nextUrl.origin);
   url.searchParams.set("callbackUrl", req.nextUrl.href);

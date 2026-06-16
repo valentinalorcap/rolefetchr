@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { Source } from "@prisma/client";
 import { SourceIcon } from "@/components/source-icon";
 import { sourceMeta } from "@/lib/source-meta";
+import { exitDemoAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -25,7 +26,7 @@ function navActive(pathname: string, href: string): boolean {
   return pathname === href;
 }
 
-export function Sidebar() {
+export function Sidebar({ isDemo = false }: { isDemo?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -73,14 +74,26 @@ export function Sidebar() {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => signOut({ callbackUrl: "/signin" })}
-        className="mt-auto flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-[14.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-      >
-        <span className="w-5 text-center">↪</span>
-        Sign out
-      </button>
+      {isDemo ? (
+        <form action={exitDemoAction} className="mt-auto">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-[14.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <span className="w-5 text-center">↪</span>
+            Exit demo
+          </button>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/signin" })}
+          className="mt-auto flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-[14.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <span className="w-5 text-center">↪</span>
+          Sign out
+        </button>
+      )}
     </aside>
   );
 }

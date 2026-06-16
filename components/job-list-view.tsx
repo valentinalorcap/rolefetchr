@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ActionStatus, Prisma } from "@prisma/client";
 import { getJobs, parseJobFilters, PAGE_SIZE } from "@/lib/jobs";
+import { getScope } from "@/lib/scope";
 import { PageShell } from "@/components/page-shell";
 import { JobFilters } from "@/components/job-filters";
 import { JobCard } from "@/components/job-card";
@@ -55,10 +57,13 @@ export async function JobListView({
     if (v !== undefined) merged[k] = v;
   }
 
+  const scope = await getScope();
+  if (!scope) redirect("/signin");
+
   const filters = parseJobFilters(merged);
   if (forceStatus !== undefined) filters.status = forceStatus;
 
-  const { jobs, hasMore, total } = await getJobs(filters, base);
+  const { jobs, hasMore, total } = await getJobs(filters, scope.demoCode, base);
 
   return (
     <PageShell title={title} subtitle={subtitle(total)}>
