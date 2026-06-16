@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
+import { enterDemo } from "@/lib/scope";
 
 export const metadata = { title: "Sign in · job-matchmaker" };
 
@@ -7,7 +9,20 @@ const GRADIENT =
   "radial-gradient(130% 140% at 100% -10%, rgba(110,160,255,.32), transparent 55%)";
 const FADE = "linear-gradient(180deg,#000 0%,#000 35%,transparent 100%)";
 
-export default function SignInPage() {
+async function enterDemoAction(formData: FormData) {
+  "use server";
+  const code = String(formData.get("code") ?? "").trim();
+  const ok = code ? await enterDemo(code) : false;
+  redirect(ok ? "/" : "/signin?error=code");
+}
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <div className="relative flex min-h-screen items-center justify-center px-6">
       <div
@@ -22,6 +37,7 @@ export default function SignInPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Private workspace. Sign in to continue.
         </p>
+
         <form
           action={async () => {
             "use server";
@@ -38,6 +54,42 @@ export default function SignInPage() {
             </svg>
             Continue with GitHub
           </button>
+        </form>
+
+        <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          or
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <form action={enterDemoAction} className="text-left">
+          <label
+            htmlFor="code"
+            className="text-xs font-medium text-muted-foreground"
+          >
+            Have an access code?
+          </label>
+          <div className="mt-1.5 flex gap-2">
+            <input
+              id="code"
+              name="code"
+              type="text"
+              autoComplete="off"
+              placeholder="Enter your code"
+              className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            />
+            <button
+              type="submit"
+              className="h-10 shrink-0 rounded-lg border border-border bg-secondary px-4 text-sm font-semibold transition-colors hover:bg-accent"
+            >
+              Enter
+            </button>
+          </div>
+          {error === "code" ? (
+            <p className="mt-2 text-xs" style={{ color: "#e3909e" }}>
+              That code is not valid. Check it and try again.
+            </p>
+          ) : null}
         </form>
       </div>
     </div>

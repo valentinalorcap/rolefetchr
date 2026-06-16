@@ -11,19 +11,30 @@ export interface ManualJobInput {
   salary?: string;
   tags?: string[];
   postedAt?: string;
+  // Tenant scope: when set, the job belongs to that demo space instead of the
+  // owner's real data.
+  demoCode?: string;
+  // Override the catalogued source (defaults to MANUAL). Useful for demo data,
+  // where varied sources populate the Sources sidebar realistically.
+  source?: Source;
 }
 
 /**
- * Add (or refresh) a manually-sourced job — e.g. a LinkedIn link an external
- * agent passes in over MCP. Deduped by (MANUAL, url). The app no longer scores;
- * the job is left unscored for the external agent to score over MCP
- * (get_unscored_jobs → set_job_score).
+ * Add (or refresh) a job an external agent passes in over MCP. Deduped by
+ * (source, externalId). The app no longer scores; the job is left unscored for
+ * the agent to score over MCP (get_unscored_jobs → set_job_score). Demo jobs
+ * namespace their externalId by code so they can't collide with real jobs or
+ * with another space.
  */
 export async function addManualJob(input: ManualJobInput): Promise<{
   jobId: string;
   isNew: boolean;
 }> {
   const postedAt = input.postedAt ? new Date(input.postedAt) : new Date();
+  const source = input.source ?? Source.MANUAL;
+  const externalId = input.demoCode
+    ? `${input.demoCode}::${input.url}`
+    : input.url;
   const fields = {
     sourceLabel: input.platform,
     title: input.title,
@@ -32,18 +43,19 @@ export async function addManualJob(input: ManualJobInput): Promise<{
     location: input.location ?? null,
     salary: input.salary ?? null,
     tags: input.tags ?? [],
+    demoCode: input.demoCode ?? null,
   };
 
   const existing = await prisma.job.findUnique({
-    where: { source_externalId: { source: Source.MANUAL, externalId: input.url } },
+    where: { source_externalId: { source, externalId } },
     select: { id: true },
   });
 
   const job = await prisma.job.upsert({
-    where: { source_externalId: { source: Source.MANUAL, externalId: input.url } },
+    where: { source_externalId: { source, externalId } },
     create: {
-      source: Source.MANUAL,
-      externalId: input.url,
+      source,
+      externalId,
       sourceUrl: input.url,
       remote: true,
       postedAt,

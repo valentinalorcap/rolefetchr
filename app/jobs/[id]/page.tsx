@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getJobById } from "@/lib/jobs";
+import { getScope } from "@/lib/scope";
 import { ScoreBadge } from "@/components/score-badge";
 import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
@@ -19,7 +20,9 @@ export default async function JobDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const job = await getJobById(id);
+  const scope = await getScope();
+  if (!scope) redirect("/signin");
+  const job = await getJobById(id, scope.demoCode);
   if (!job) notFound();
 
   const meta = sourceMeta(job.source, job.sourceLabel);
