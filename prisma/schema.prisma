@@ -115,6 +115,11 @@ model DemoSpace {
   label     String // display name shown in the demo banner
   message   String?  @db.Text // optional override for the demo banner copy
   createdAt DateTime @default(now())
+
+  // Usage tracking, so the owner can tell whether (and when) a recipient entered.
+  firstUsedAt DateTime? // first successful code entry (null = never used)
+  lastSeenAt  DateTime? // most recent activity in the space
+  useCount    Int       @default(0) // number of code entries (new sessions/devices)
 }
 
 enum Source {

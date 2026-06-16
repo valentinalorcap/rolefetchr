@@ -595,7 +595,8 @@ const mcpHandler = createMcpHandler(
       "list_demo_spaces",
       {
         title: "List demo spaces",
-        description: "List every demo space with its access code, label, and job count.",
+        description:
+          "List every demo space with its access code, label, job count, and usage: whether the code has been entered, when it was first used, the last activity, and how many times it was entered.",
         inputSchema: {},
       },
       async () => {
@@ -606,7 +607,10 @@ const mcpHandler = createMcpHandler(
         const lines = await Promise.all(
           spaces.map(async (s) => {
             const jobs = await prisma.job.count({ where: { demoCode: s.code } });
-            return `${s.code} · ${s.label} · ${jobs} job${jobs === 1 ? "" : "s"}`;
+            const usage = s.firstUsedAt
+              ? `entered ${s.useCount}× · first ${s.firstUsedAt.toISOString()} · last seen ${s.lastSeenAt?.toISOString() ?? "—"}`
+              : "NOT entered yet";
+            return `${s.code} · ${s.label} · ${jobs} job${jobs === 1 ? "" : "s"} · ${usage}`;
           }),
         );
         return { content: [{ type: "text", text: lines.join("\n") }] };
