@@ -37,6 +37,7 @@ export async function JobListView({
   action,
   emptyMessage,
   defaults = {},
+  demoDefaults,
   forceStatus,
   base,
   hideIngested = false,
@@ -47,18 +48,25 @@ export async function JobListView({
   action: string;
   emptyMessage: string;
   defaults?: RawParams;
+  // Extra defaults applied only in a demo scope (e.g. no relevance floor on Jobs
+  // so a curated demo shows every loaded posting).
+  demoDefaults?: RawParams;
   forceStatus?: ActionStatus;
   base?: Prisma.JobWhereInput;
   hideIngested?: boolean;
 }) {
-  // URL params win over the tab's defaults.
-  const merged: RawParams = { ...defaults };
+  const scope = await getScope();
+  if (!scope) redirect("/signin");
+
+  // URL params win over the tab's defaults; demo-only defaults overlay the base
+  // defaults when in a demo scope.
+  const merged: RawParams = {
+    ...defaults,
+    ...(scope.kind === "demo" ? demoDefaults : undefined),
+  };
   for (const [k, v] of Object.entries(searchParams)) {
     if (v !== undefined) merged[k] = v;
   }
-
-  const scope = await getScope();
-  if (!scope) redirect("/signin");
 
   const filters = parseJobFilters(merged);
   if (forceStatus !== undefined) filters.status = forceStatus;
