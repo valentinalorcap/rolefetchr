@@ -199,6 +199,19 @@ export async function getJobs(
   return { jobs: hasMore ? rows.slice(0, filters.take) : rows, hasMore, total };
 }
 
+/** Cheap count for the header subtitle (no row fetch / includes), same scoping
+ * and base as getJobs. Kept separate so the heavy list query can stream into a
+ * Suspense boundary while the header renders immediately. */
+export function countJobs(
+  filters: JobFilters,
+  demoCode: string | null,
+  base?: Prisma.JobWhereInput,
+): Promise<number> {
+  const parts: Prisma.JobWhereInput[] = [{ demoCode }, buildWhere(filters)];
+  if (base) parts.push(base);
+  return prisma.job.count({ where: { AND: parts } });
+}
+
 /** One job by id, scoped: returns null if it doesn't belong to `demoCode`, so a
  * demo visitor can't open the owner's (or another space's) job by guessing an id. */
 export function getJobById(id: string, demoCode: string | null) {
