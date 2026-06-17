@@ -19,6 +19,10 @@ export type Scope =
   | { kind: "owner"; demoCode: null }
   | { kind: "demo"; demoCode: string; space: DemoSpace };
 
+// Don't write lastSeenAt more than once per this window (getScope runs several
+// times per navigation; this bounds the tracking writes).
+const SEEN_THROTTLE_MS = 5 * 60_000;
+
 export async function getScope(): Promise<Scope | null> {
   // The owner (GitHub session) always wins and sees real data.
   const session = await auth();
@@ -27,9 +31,28 @@ export async function getScope(): Promise<Scope | null> {
   const code = (await cookies()).get(DEMO_COOKIE)?.value;
   if (code) {
     const space = await prisma.demoSpace.findUnique({ where: { code } });
-    if (space) return { kind: "demo", demoCode: space.code, space };
+    if (space) {
+      void touchLastSeen(space);
+      return { kind: "demo", demoCode: space.code, space };
+    }
   }
   return null;
+}
+
+/** Bump lastSeenAt on activity, throttled. Best-effort — never blocks the page. */
+async function touchLastSeen(space: DemoSpace): Promise<void> {
+  const stale =
+    !space.lastSeenAt ||
+    Date.now() - space.lastSeenAt.getTime() > SEEN_THROTTLE_MS;
+  if (!stale) return;
+  try {
+    await prisma.demoSpace.update({
+      where: { code: space.code },
+      data: { lastSeenAt: new Date() },
+    });
+  } catch {
+    // tracking is non-critical
+  }
 }
 
 /** Validate a demo access code and start the session (sets the cookie). */
@@ -38,6 +61,15 @@ export async function enterDemo(code: string): Promise<boolean> {
     where: { code: code.trim() },
   });
   if (!space) return false;
+  // Record the entry: first use, last activity, and a session/device count.
+  await prisma.demoSpace.update({
+    where: { code: space.code },
+    data: {
+      useCount: { increment: 1 },
+      firstUsedAt: space.firstUsedAt ?? new Date(),
+      lastSeenAt: new Date(),
+    },
+  });
   (await cookies()).set(DEMO_COOKIE, space.code, {
     httpOnly: true,
     sameSite: "lax",
