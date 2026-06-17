@@ -8,7 +8,7 @@ function tone(score: number): { color: string; bg: string } {
   return { color: "#e3909e", bg: "rgba(227,144,158,.15)" }; // dim rose (low / blocked)
 }
 
-/** Score as a colored number (no pill background) with a gray "/100" beside it. */
+/** Score as a tinted pill (the number) with a gray "/100" beside it. */
 export function ScoreBadge({
   score,
   size = "md",
@@ -26,10 +26,10 @@ export function ScoreBadge({
     >
       <span
         className={cn(
-          "font-bold tabular-nums",
-          size === "sm" ? "text-sm" : "text-xl",
+          "rounded-lg font-bold tabular-nums",
+          size === "sm" ? "px-2 py-0.5 text-sm" : "px-3 py-1 text-lg",
         )}
-        style={{ color: t.color }}
+        style={{ color: t.color, backgroundColor: t.bg }}
       >
         {score}
       </span>
