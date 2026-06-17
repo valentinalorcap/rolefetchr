@@ -27,6 +27,8 @@ export default async function JobDetail({
 
   const meta = sourceMeta(job.source, job.sourceLabel);
   const notEligible = job.score ? !job.score.eligible : false;
+  // Demos don't surface the candidate's gaps (weaknesses) for a role.
+  const showGaps = scope.kind !== "demo";
 
   return (
     <div className="relative">
@@ -118,7 +120,7 @@ export default async function JobDetail({
               </div>
             ) : null}
 
-            {job.score.gaps.length > 0 ? (
+            {showGaps && job.score.gaps.length > 0 ? (
               <div className="mt-3">
                 <p className="text-xs font-medium text-muted-foreground">Gaps</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">

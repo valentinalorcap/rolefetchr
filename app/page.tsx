@@ -21,10 +21,10 @@ export default async function TodayPage({
         `${total} ${total === 1 ? "job" : "jobs"} ingested today`
       }
       emptyMessage="Nothing ingested today yet. The daily ingest runs each morning — check back later."
-      // Ingested-today is the locked base; show all of today's intake (no score
-      // floor), best-match first by default, with the full filter bar available.
+      // Ingested-today is the locked base; the Ingested control defaults to 24h
+      // (shown applied). Show all of today's intake (no score floor).
       base={todayBase()}
-      defaults={{ minScore: "0" }}
+      defaults={{ minScore: "0", ingested: "24h" }}
     />
   );
 }
