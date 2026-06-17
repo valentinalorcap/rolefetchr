@@ -70,11 +70,15 @@ export function JobCard({ job }: { job: JobWithRelations }) {
         </div>
       ) : null}
 
-      <div className="flex h-11 shrink-0 items-center justify-between gap-2.5 border-t border-border px-4">
+      <div className="flex h-11 shrink-0 items-center gap-2.5 border-t border-border px-4">
         <JobActions jobId={job.id} status={job.action?.status ?? null} />
-        <span className="truncate text-xs text-muted-foreground">
-          {meta.label} · added {relativeTime(job.fetchedAt)}
-        </span>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-1 text-xs text-muted-foreground">
+          {/* Source label truncates first; the date always stays visible. */}
+          <span className="min-w-0 truncate">{meta.label}</span>
+          <span className="shrink-0 whitespace-nowrap">
+            · added {relativeTime(job.fetchedAt)}
+          </span>
+        </div>
       </div>
     </div>
   );

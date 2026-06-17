@@ -36,7 +36,7 @@ export function JobActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex shrink-0 gap-1.5">
       {OPTIONS.map((o) => {
         const active = status === o.status;
         return (
