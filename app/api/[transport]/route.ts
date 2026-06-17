@@ -66,6 +66,56 @@ const mcpHandler = createMcpHandler(
     );
 
     server.registerTool(
+      "update_job",
+      {
+        title: "Update a job",
+        description:
+          "Edit an existing job's fields by id (e.g. fix a title, description, location, or source) without recreating it. Only the fields you pass are changed. Does not change the score — re-run set_job_score if the change affects the fit.",
+        inputSchema: {
+          id: z.string().describe("The job id to update."),
+          title: z.string().optional(),
+          company: z.string().optional(),
+          description: z.string().optional(),
+          location: z.string().nullable().optional(),
+          salary: z.string().nullable().optional(),
+          tags: z.array(z.string()).optional(),
+          platform: z
+            .string()
+            .optional()
+            .describe("The displayed platform/source label (sourceLabel)."),
+          source: z
+            .nativeEnum(Source)
+            .optional()
+            .describe("The catalogued source (affects the Sources sidebar)."),
+          url: z.string().url().optional().describe("The posting URL (sourceUrl)."),
+          postedAt: z.string().optional().describe("ISO date the job was posted."),
+        },
+      },
+      async ({ id, platform, url, postedAt, ...rest }) => {
+        const job = await prisma.job.findUnique({ where: { id }, select: { id: true } });
+        if (!job) {
+          return { content: [{ type: "text", text: `No job with id ${id}.` }], isError: true };
+        }
+        const data: Prisma.JobUpdateInput = {};
+        for (const [k, v] of Object.entries(rest)) {
+          if (v !== undefined) (data as Record<string, unknown>)[k] = v;
+        }
+        if (platform !== undefined) data.sourceLabel = platform;
+        if (url !== undefined) data.sourceUrl = url;
+        if (postedAt !== undefined) data.postedAt = new Date(postedAt);
+        if (Object.keys(data).length === 0) {
+          return { content: [{ type: "text", text: "Nothing to update." }], isError: true };
+        }
+        await prisma.job.update({ where: { id }, data });
+        return {
+          content: [
+            { type: "text", text: `Updated ${Object.keys(data).join(", ")} on job ${id}.` },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
       "get_unscored_jobs",
       {
         title: "Get unscored jobs",
