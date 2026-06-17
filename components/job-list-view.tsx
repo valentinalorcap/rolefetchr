@@ -97,6 +97,7 @@ export async function JobListView({
           action={action}
           hideStatus={forceStatus !== undefined}
           hideIngested={hideIngested}
+          companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
         />
       </div>
 
