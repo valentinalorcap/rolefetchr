@@ -22,7 +22,10 @@ export default async function RootLayout({
       <body className="antialiased">
         {scope ? (
           <div className="flex min-h-screen">
-            <Sidebar isDemo={isDemo} />
+            <Sidebar
+              isDemo={isDemo}
+              companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
+            />
             <main className="min-w-0 flex-1">
               {isDemo ? (
                 <DemoBanner label={scope.space.label} message={scope.space.message} />

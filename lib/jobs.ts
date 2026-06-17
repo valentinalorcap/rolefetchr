@@ -92,7 +92,7 @@ export function parseJobFilters(params: RawParams): JobFilters {
     remoteOnly: first(params.remote) === "true",
     minScore,
     status,
-    sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "recent",
+    sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
 }
@@ -172,7 +172,7 @@ export interface JobListPage {
  * more"). `demoCode` scopes the query to a tenant (null = the owner's real
  * jobs); it's always enforced. `base` is a tab-level constraint that the URL
  * filters can't remove (e.g. "eligible 50+" for Best matches, "ingested today"
- * for Hoy) — it's AND-ed with the user's filters.
+ * for Today) — it's AND-ed with the user's filters.
  */
 export async function getJobs(
   filters: JobFilters,
@@ -199,6 +199,19 @@ export async function getJobs(
   return { jobs: hasMore ? rows.slice(0, filters.take) : rows, hasMore, total };
 }
 
+/** Cheap count for the header subtitle (no row fetch / includes), same scoping
+ * and base as getJobs. Kept separate so the heavy list query can stream into a
+ * Suspense boundary while the header renders immediately. */
+export function countJobs(
+  filters: JobFilters,
+  demoCode: string | null,
+  base?: Prisma.JobWhereInput,
+): Promise<number> {
+  const parts: Prisma.JobWhereInput[] = [{ demoCode }, buildWhere(filters)];
+  if (base) parts.push(base);
+  return prisma.job.count({ where: { AND: parts } });
+}
+
 /** One job by id, scoped: returns null if it doesn't belong to `demoCode`, so a
  * demo visitor can't open the owner's (or another space's) job by guessing an id. */
 export function getJobById(id: string, demoCode: string | null) {
@@ -217,7 +230,7 @@ export const BEST_MATCHES_BASE: Prisma.JobWhereInput = {
   score: { is: { eligible: true } },
 };
 
-/** Hoy: only jobs first ingested today (by fetchedAt, UTC day start). */
+/** Today: only jobs first ingested today (by fetchedAt, UTC day start). */
 export function todayBase(): Prisma.JobWhereInput {
   const startOfToday = new Date();
   startOfToday.setUTCHours(0, 0, 0, 0);

@@ -21,10 +21,10 @@ export default async function BestPage({
         `${total} eligible ${total === 1 ? "match" : "matches"} · sorted by fit`
       }
       emptyMessage="No eligible matches at this score yet. Lower the min score, or check Jobs."
-      // Eligible-only is locked; score floor + best-match sort are the defaults
-      // (adjustable in the bar).
+      // Eligible-only is locked; the score floor is the default (adjustable),
+      // best-match sort is the global default.
       base={BEST_MATCHES_BASE}
-      defaults={{ minScore: "50", sort: "score" }}
+      defaults={{ minScore: "50" }}
     />
   );
 }
