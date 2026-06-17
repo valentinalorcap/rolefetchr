@@ -22,7 +22,7 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
     const fetched = await src.fetchJobs();
     // Free relevance gate: drop clearly non-software roles before storing, so
     // they don't clutter the app or cost the external scoring agent tokens.
-    const jobs = fetched.filter((j) => !isIrrelevant(j.title, j.tags));
+    const jobs = fetched.filter((j) => !isIrrelevant(j.title));
 
     const existing = await prisma.job.findMany({
       where: {
