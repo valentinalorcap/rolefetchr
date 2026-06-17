@@ -26,8 +26,19 @@ function navActive(pathname: string, href: string): boolean {
   return pathname === href;
 }
 
-export function Sidebar({ isDemo = false }: { isDemo?: boolean }) {
+export function Sidebar({
+  isDemo = false,
+  companyLabel,
+}: {
+  isDemo?: boolean;
+  // In a demo, the company's own board (source MANUAL) is shown first under the
+  // company name; the generic "Manual" entry is hidden.
+  companyLabel?: string;
+}) {
   const pathname = usePathname();
+  const enumSources = companyLabel
+    ? SOURCES.filter((s) => s !== Source.MANUAL)
+    : SOURCES;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-3.5 py-7 md:flex">
@@ -61,7 +72,17 @@ export function Sidebar({ isDemo = false }: { isDemo?: boolean }) {
         Sources <span className="text-xs text-muted-foreground">▾</span>
       </div>
       <div className="flex flex-col">
-        {SOURCES.map((s) => (
+        {companyLabel ? (
+          <Link
+            href="/jobs?source=MANUAL"
+            className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-[14.5px] font-semibold transition-colors hover:bg-accent"
+          >
+            <SourceIcon source={Source.MANUAL} sourceLabel={companyLabel} className="size-6" />
+            {companyLabel}
+            <span className="ml-auto text-muted-foreground/60">›</span>
+          </Link>
+        ) : null}
+        {enumSources.map((s) => (
           <Link
             key={s}
             href={`/jobs?source=${s}`}
