@@ -30,7 +30,7 @@ Be calibrated and honest — most generic listings should land 30-60. Reserve 80
 Return:
 - score: integer 0-100
 - eligible: true if she can actually take the role; false if it requires relocation, on-site/hybrid, or a visa/residency/work-authorization outside Spain (see above). When false, the score must be very low (≤15).
-- reasoning: 2-3 sentences on the fit, grounded in the CV and the job. If not eligible, say why explicitly.
+- reasoning: ONE short, direct sentence (two at most) — the main reason it fits and the main caveat, summarized (the good and the bad). Straight to the point, no filler; deeper detail can be asked of the agent. If not eligible, state the blocker in a few words.
 - matchedSkills: concrete skills/requirements in the job that match her CV.
 - gaps: concrete requirements in the job she does not clearly meet.`;
 
