@@ -642,6 +642,72 @@ const mcpHandler = createMcpHandler(
     );
 
     server.registerTool(
+      "update_demo_space",
+      {
+        title: "Update a demo space",
+        description:
+          "Edit a demo space by code without deleting and recreating it: rename its access code (re-tags all of its jobs; the old code stops working immediately), change the label, or change the banner message. Only the fields you pass are changed.",
+        inputSchema: {
+          code: z.string().describe("The space's current access code."),
+          newCode: z
+            .string()
+            .min(3)
+            .optional()
+            .describe("A new access code; its jobs are re-tagged and the old code is invalidated."),
+          label: z.string().optional().describe("New display name."),
+          message: z
+            .string()
+            .nullable()
+            .optional()
+            .describe("New banner message; pass null to clear it."),
+        },
+      },
+      async ({ code, newCode, label, message }) => {
+        const space = await prisma.demoSpace.findUnique({ where: { code } });
+        if (!space) {
+          return { content: [{ type: "text", text: `No demo space with code ${code}.` }], isError: true };
+        }
+        const fields: Prisma.DemoSpaceUpdateInput = {};
+        if (label !== undefined) fields.label = label;
+        if (message !== undefined) fields.message = message;
+
+        if (newCode && newCode !== code) {
+          const clash = await prisma.demoSpace.findUnique({ where: { code: newCode }, select: { code: true } });
+          if (clash) {
+            return { content: [{ type: "text", text: `A demo space with code "${newCode}" already exists.` }], isError: true };
+          }
+          const jobs = await prisma.job.findMany({ where: { demoCode: code }, select: { id: true, externalId: true } });
+          const prefix = `${code}::`;
+          await prisma.$transaction([
+            prisma.demoSpace.update({ where: { code }, data: { ...fields, code: newCode } }),
+            ...jobs.map((j) =>
+              prisma.job.update({
+                where: { id: j.id },
+                data: {
+                  demoCode: newCode,
+                  externalId: j.externalId.startsWith(prefix)
+                    ? `${newCode}::${j.externalId.slice(prefix.length)}`
+                    : j.externalId,
+                },
+              }),
+            ),
+          ]);
+          return {
+            content: [
+              { type: "text", text: `Renamed demo space ${code} → ${newCode} (${jobs.length} job${jobs.length === 1 ? "" : "s"} re-tagged).` },
+            ],
+          };
+        }
+
+        if (Object.keys(fields).length === 0) {
+          return { content: [{ type: "text", text: "Nothing to update." }], isError: true };
+        }
+        await prisma.demoSpace.update({ where: { code }, data: fields });
+        return { content: [{ type: "text", text: `Updated demo space ${code}.` }] };
+      },
+    );
+
+    server.registerTool(
       "list_demo_spaces",
       {
         title: "List demo spaces",
