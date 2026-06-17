@@ -21,8 +21,9 @@ export default async function JobsPage({
         `${total} ${total === 1 ? "job" : "jobs"}${keyword ? ` matching “${keyword}”` : ""}`
       }
       emptyMessage="No jobs match these filters. Try clearing them or widening the range."
-      // In a demo, show every loaded posting by default, best match first.
-      demoDefaults={{ minScore: "0", sort: "score" }}
+      // In a demo, show every loaded posting by default (no relevance floor);
+      // best-match sort is the global default.
+      demoDefaults={{ minScore: "0" }}
     />
   );
 }

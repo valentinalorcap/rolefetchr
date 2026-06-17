@@ -18,8 +18,7 @@ export default async function ArchivedPage({
       title="Archived"
       subtitle={(total) => `${total} archived ${total === 1 ? "job" : "jobs"}`}
       emptyMessage="Nothing archived. Hit “Archive” on a job to move it here and out of the main views."
-      forceStatus="NOT_INTERESTED"
-      defaults={{ minScore: "0", sort: "recent" }}
+      defaults={{ status: "NOT_INTERESTED", minScore: "0" }}
     />
   );
 }

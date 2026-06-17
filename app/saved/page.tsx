@@ -18,9 +18,8 @@ export default async function SavedPage({
       title="Saved"
       subtitle={(total) => `${total} saved ${total === 1 ? "job" : "jobs"}`}
       emptyMessage="Nothing saved yet. Hit “Save” on a job to keep it here."
-      // Status locked to SAVED; default to show-all + newest so you can re-sort.
-      forceStatus="SAVED"
-      defaults={{ minScore: "0", sort: "recent" }}
+      // Default to SAVED (shown in the status control) + show-all; re-sortable.
+      defaults={{ status: "SAVED", minScore: "0" }}
     />
   );
 }

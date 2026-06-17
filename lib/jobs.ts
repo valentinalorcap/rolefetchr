@@ -92,7 +92,7 @@ export function parseJobFilters(params: RawParams): JobFilters {
     remoteOnly: first(params.remote) === "true",
     minScore,
     status,
-    sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "recent",
+    sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
 }

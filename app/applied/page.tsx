@@ -20,8 +20,7 @@ export default async function AppliedPage({
         `${total} ${total === 1 ? "application" : "applications"} tracked`
       }
       emptyMessage="No applications tracked yet. Mark a job “Applied” to track it here."
-      forceStatus="APPLIED"
-      defaults={{ minScore: "0", sort: "recent" }}
+      defaults={{ status: "APPLIED", minScore: "0" }}
     />
   );
 }
