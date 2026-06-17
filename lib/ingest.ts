@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sources, type JobSource } from "@/lib/sources";
+import { isIrrelevant } from "@/lib/relevance-filter";
 
 export interface IngestResult {
   source: string;
@@ -18,7 +19,10 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
   const run = await prisma.ingestionRun.create({ data: { source: src.source } });
 
   try {
-    const jobs = await src.fetchJobs();
+    const fetched = await src.fetchJobs();
+    // Free relevance gate: drop clearly non-software roles before storing, so
+    // they don't clutter the app or cost the external scoring agent tokens.
+    const jobs = fetched.filter((j) => !isIrrelevant(j.title, j.tags));
 
     const existing = await prisma.job.findMany({
       where: {
@@ -41,10 +45,10 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
 
     await prisma.ingestionRun.update({
       where: { id: run.id },
-      data: { endedAt: new Date(), jobsFetched: jobs.length, jobsNew },
+      data: { endedAt: new Date(), jobsFetched: fetched.length, jobsNew },
     });
 
-    return { source: src.source, jobsFetched: jobs.length, jobsNew, error: null };
+    return { source: src.source, jobsFetched: fetched.length, jobsNew, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await prisma.ingestionRun.update({
