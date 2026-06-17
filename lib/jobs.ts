@@ -172,7 +172,7 @@ export interface JobListPage {
  * more"). `demoCode` scopes the query to a tenant (null = the owner's real
  * jobs); it's always enforced. `base` is a tab-level constraint that the URL
  * filters can't remove (e.g. "eligible 50+" for Best matches, "ingested today"
- * for Hoy) — it's AND-ed with the user's filters.
+ * for Today) — it's AND-ed with the user's filters.
  */
 export async function getJobs(
   filters: JobFilters,
@@ -230,7 +230,7 @@ export const BEST_MATCHES_BASE: Prisma.JobWhereInput = {
   score: { is: { eligible: true } },
 };
 
-/** Hoy: only jobs first ingested today (by fetchedAt, UTC day start). */
+/** Today: only jobs first ingested today (by fetchedAt, UTC day start). */
 export function todayBase(): Prisma.JobWhereInput {
   const startOfToday = new Date();
   startOfToday.setUTCHours(0, 0, 0, 0);

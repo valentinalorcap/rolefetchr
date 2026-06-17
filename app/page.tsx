@@ -3,7 +3,7 @@ import { todayBase } from "@/lib/jobs";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export const metadata = { title: "Hoy · job-matchmaker" };
+export const metadata = { title: "Today · job-matchmaker" };
 
 export default async function TodayPage({
   searchParams,
@@ -16,7 +16,7 @@ export default async function TodayPage({
     <JobListView
       searchParams={params}
       action="/"
-      title="Hoy"
+      title="Today"
       subtitle={(total) =>
         `${total} ${total === 1 ? "job" : "jobs"} ingested today`
       }

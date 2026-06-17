@@ -10,7 +10,7 @@ import { exitDemoAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Hoy", icon: "📅" },
+  { href: "/", label: "Today", icon: "📅" },
   { href: "/jobs", label: "Jobs", icon: "💼" },
   { href: "/best", label: "Best matches", icon: "🚀" },
   { href: "/saved", label: "Saved", icon: "🤍" },
