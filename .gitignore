@@ -44,3 +44,4 @@ next-env.d.ts
 # Internal planning notes / working docs — local only, never publish
 PLAN.md
 CLAUDE.md
+CONTRIBUTING.local.md
