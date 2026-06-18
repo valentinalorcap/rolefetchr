@@ -245,10 +245,3 @@ export function getJobById(id: string, demoCode: string | null) {
 export const BEST_MATCHES_BASE: Prisma.JobWhereInput = {
   score: { is: { eligible: true } },
 };
-
-/** Today: only jobs first ingested today (by fetchedAt, UTC day start). */
-export function todayBase(): Prisma.JobWhereInput {
-  const startOfToday = new Date();
-  startOfToday.setUTCHours(0, 0, 0, 0);
-  return { fetchedAt: { gte: startOfToday } };
-}
