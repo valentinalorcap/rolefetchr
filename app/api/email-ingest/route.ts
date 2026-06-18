@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { compactEmail } from "@/lib/email-compact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,11 +37,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
   }
 
+  // Store a compact, link-preserving version (job-alert emails are ~170 KB of
+  // mostly boilerplate); keeps the agent's extraction clean and untruncated.
+  const compact = compactEmail(html).slice(0, MAX_HTML_CHARS);
   const pending = await prisma.pendingEmail.create({
     data: {
       provider: (body.provider || "Email").trim(),
       subject: body.subject?.trim() || null,
-      html: html.slice(0, MAX_HTML_CHARS),
+      html: compact,
     },
   });
 
