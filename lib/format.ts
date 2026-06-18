@@ -31,3 +31,11 @@ export function snippet(html: string, max = 220): string {
 export function relativeTime(date: Date): string {
   return formatDistanceToNow(date, { addSuffix: true });
 }
+
+// Real job descriptions from the API/RSS sources run thousands of chars; email
+// alerts (LinkedIn/Jobgether) carry only a title + link, so their jobs land with
+// little or no description. Treat those as "leads" — open the source to read the
+// full posting, then paste it to the agent to fill it in.
+export function isLeadDescription(description: string): boolean {
+  return stripHtml(description).length < 250;
+}
