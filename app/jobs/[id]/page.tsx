@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getJobById } from "@/lib/jobs";
 import { getScope } from "@/lib/scope";
+import { BackButton } from "@/components/back-button";
 import { ScoreBadge } from "@/components/score-badge";
 import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
@@ -39,12 +39,7 @@ export default async function JobDetail({
         style={{ background: GRADIENT, WebkitMaskImage: FADE, maskImage: FADE }}
       />
       <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8">
-        <Link
-          href="/jobs"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ‹ Back to jobs
-        </Link>
+        <BackButton />
 
         <div className="mt-4 flex items-start gap-3">
           <SourceIcon
