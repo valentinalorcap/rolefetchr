@@ -75,7 +75,9 @@ export function JobCard({ job }: { job: JobWithRelations }) {
           ))}
         </div>
       ) : (
-        <div className="mt-auto" />
+        // No chips and not a lead: keep the same breathing room the chips row
+        // would add, so the posted date isn't cramped against the footer.
+        <div className="mt-auto pb-5" />
       )}
 
       {notEligible ? (
