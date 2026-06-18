@@ -11,6 +11,9 @@ export interface ManualJobInput {
   salary?: string;
   tags?: string[];
   postedAt?: string;
+  // First-seen / ingestion date (drives Today / Ingested). Defaults to now; set
+  // it e.g. to the alert email's received date when adding an email job.
+  fetchedAt?: string;
   // Tenant scope: when set, the job belongs to that demo space instead of the
   // owner's real data.
   demoCode?: string;
@@ -59,6 +62,8 @@ export async function addManualJob(input: ManualJobInput): Promise<{
       sourceUrl: input.url,
       remote: true,
       postedAt,
+      // undefined → Prisma uses the @default(now()).
+      fetchedAt: input.fetchedAt ? new Date(input.fetchedAt) : undefined,
       ...fields,
     },
     update: fields,

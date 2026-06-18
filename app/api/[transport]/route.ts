@@ -37,6 +37,12 @@ const mcpHandler = createMcpHandler(
             .string()
             .optional()
             .describe("ISO date the job was posted; defaults to now."),
+          fetchedAt: z
+            .string()
+            .optional()
+            .describe(
+              "ISO first-seen / ingestion date (drives the Today / Ingested views); defaults to now. For an email job, set it to the alert email's received date so it isn't shown as ingested today.",
+            ),
           demoCode: z
             .string()
             .optional()
@@ -91,9 +97,15 @@ const mcpHandler = createMcpHandler(
             .describe("The catalogued source (affects the Sources sidebar)."),
           url: z.string().url().optional().describe("The posting URL (sourceUrl)."),
           postedAt: z.string().optional().describe("ISO date the job was posted."),
+          fetchedAt: z
+            .string()
+            .optional()
+            .describe(
+              "ISO first-seen / ingestion date (drives the Today / Ingested views). Correct it here if needed — e.g. to the alert email's date. This is the 'added to the app' date, NOT a scoring timestamp: do not bump it when re-scoring.",
+            ),
         },
       },
-      async ({ id, platform, url, postedAt, ...rest }) => {
+      async ({ id, platform, url, postedAt, fetchedAt, ...rest }) => {
         const job = await prisma.job.findUnique({ where: { id }, select: { id: true } });
         if (!job) {
           return { content: [{ type: "text", text: `No job with id ${id}.` }], isError: true };
@@ -105,6 +117,7 @@ const mcpHandler = createMcpHandler(
         if (platform !== undefined) data.sourceLabel = platform;
         if (url !== undefined) data.sourceUrl = url;
         if (postedAt !== undefined) data.postedAt = new Date(postedAt);
+        if (fetchedAt !== undefined) data.fetchedAt = new Date(fetchedAt);
         if (Object.keys(data).length === 0) {
           return { content: [{ type: "text", text: "Nothing to update." }], isError: true };
         }
