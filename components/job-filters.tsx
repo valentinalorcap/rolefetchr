@@ -32,14 +32,17 @@ export function JobFilters({
   // Local copies of the controls so a selection shows INSTANTLY (the URL/server
   // round-trip happens in the background). Re-synced when the filters change.
   const derived: Record<
-    "keyword" | "sort" | "fresh" | "ingested" | "minScore" | "source" | "status",
+    | "keyword" | "sort" | "fresh" | "ingested" | "evaluated"
+    | "minScore" | "eligible" | "source" | "status",
     string
   > = {
     keyword: filters.keyword ?? "",
     sort: filters.sort,
     fresh: filters.fresh ?? "",
     ingested: filters.ingested ?? "",
+    evaluated: filters.evaluated ?? "",
     minScore: filters.minScore != null ? filters.minScore.toString() : "0",
+    eligible: filters.eligible === true ? "true" : filters.eligible === false ? "false" : "",
     source: filters.sources[0] ?? "",
     status: filters.status ?? "",
   };
@@ -52,7 +55,9 @@ export function JobFilters({
     derived.sort,
     derived.fresh,
     derived.ingested,
+    derived.evaluated,
     derived.minScore,
+    derived.eligible,
     derived.source,
     derived.status,
   ]);
@@ -86,7 +91,7 @@ export function JobFilters({
   }
 
   function clearAll() {
-    setVals({ keyword: "", sort: "recent", fresh: "", ingested: "", minScore: "0", source: "", status: "" });
+    setVals({ keyword: "", sort: "score", fresh: "", ingested: "", evaluated: "", minScore: "0", eligible: "", source: "", status: "" });
     startTransition(() => router.push(action));
   }
 
@@ -125,11 +130,22 @@ export function JobFilters({
             <option value="7d">Ingested: 7 days</option>
           </select>
         )}
+        <select value={vals.evaluated} onChange={(e) => set("evaluated", e.target.value)} className={select} aria-label="Evaluated">
+          <option value="">Evaluated: any</option>
+          <option value="24h">Evaluated: 24h</option>
+          <option value="48h">Evaluated: 48h</option>
+          <option value="7d">Evaluated: 7 days</option>
+        </select>
         <select value={vals.minScore} onChange={(e) => set("minScore", e.target.value)} className={select} aria-label="Min score">
           <option value="30">Matches (30+)</option>
           <option value="50">Strong (50+)</option>
           <option value="70">Top (70+)</option>
           <option value="0">Show all</option>
+        </select>
+        <select value={vals.eligible} onChange={(e) => set("eligible", e.target.value)} className={select} aria-label="Eligibility">
+          <option value="">Eligibility: any</option>
+          <option value="true">Eligible</option>
+          <option value="false">Not eligible</option>
         </select>
         <select value={vals.source} onChange={(e) => set("source", e.target.value)} className={select} aria-label="Source">
           <option value="">All sources</option>

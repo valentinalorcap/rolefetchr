@@ -37,8 +37,10 @@ export interface JobFilters {
   keyword: string | null;
   fresh: FreshKey | null; // published within (postedAt)
   ingested: FreshKey | null; // ingested within (fetchedAt)
+  evaluated: FreshKey | null; // scored within (JobScore.evaluatedAt)
   remoteOnly: boolean;
   minScore: number | null;
+  eligible: boolean | null; // null = any; true/false filter on JobScore.eligible
   status: ActionStatus | null;
   sort: SortKey;
   take: number;
@@ -84,13 +86,19 @@ export function parseJobFilters(params: RawParams): JobFilters {
       ? (rawStatus as ActionStatus)
       : null;
 
+  const rawEligible = first(params.eligible);
+  const eligible =
+    rawEligible === "true" ? true : rawEligible === "false" ? false : null;
+
   return {
     sources,
     keyword: first(params.keyword)?.trim() || null,
     fresh: asFresh(first(params.fresh)),
     ingested: asFresh(first(params.ingested)),
+    evaluated: asFresh(first(params.evaluated)),
     remoteOnly: first(params.remote) === "true",
     minScore,
+    eligible,
     status,
     sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
@@ -113,9 +121,17 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     where.fetchedAt = { gte: since };
   }
 
-  // minScore implies "has a score at least this high" — unscored jobs drop out.
-  if (filters.minScore !== null) {
-    where.score = { is: { score: { gte: filters.minScore } } };
+  // Accumulate every score-relation condition into one `score.is` (each of these
+  // implies the job has a score, so unscored jobs drop out for these filters).
+  const scoreIs: Prisma.JobScoreWhereInput = {};
+  if (filters.minScore !== null) scoreIs.score = { gte: filters.minScore };
+  if (filters.eligible !== null) scoreIs.eligible = filters.eligible;
+  if (filters.evaluated) {
+    const since = new Date(Date.now() - FRESH_HOURS[filters.evaluated] * 3600_000);
+    scoreIs.evaluatedAt = { gte: since };
+  }
+  if (Object.keys(scoreIs).length > 0) {
+    where.score = { is: scoreIs };
   } else if (isScoreSort(filters.sort) && !filters.status) {
     // Match sorts rank scored jobs only; keep unscored out of those sorts. But
     // on a status view (Saved/Applied) we want every job you flagged, scored or
