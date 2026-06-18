@@ -148,8 +148,10 @@ export function JobFilters({
         <select value={vals.sort} onChange={(e) => set("sort", e.target.value)} className={sel(vals.sort)} aria-label="Sort">
           <option value="score">Best match</option>
           <option value="score_asc">Lowest match</option>
-          <option value="recent">Newest first</option>
-          <option value="oldest">Oldest first</option>
+          <option value="ingested">Ingested: newest</option>
+          <option value="ingested_asc">Ingested: oldest</option>
+          <option value="posted">Published: newest</option>
+          <option value="posted_asc">Published: oldest</option>
           <option value="title">Title A–Z</option>
           <option value="title_desc">Title Z–A</option>
         </select>
