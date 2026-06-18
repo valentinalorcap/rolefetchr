@@ -10,6 +10,12 @@ import { stripHtml } from "@/lib/format";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// The job description is rendered as HTML (Tailwind `prose`), NOT markdown — so
+// `##` and `**` show up literally. This tells the agent to format with HTML tags
+// so descriptions read with real headings, bold and lists.
+const DESCRIPTION_GUIDANCE =
+  "Full job description. It is rendered as HTML (NOT markdown): do NOT use markdown like ## or **, they appear literally. Format with HTML tags — <h3> for section headings (h1/h2 are auto-demoted to h3), <strong> for bold, <p> for paragraphs, <ul>/<ol> + <li> for lists, <a href> for links, <br> for line breaks. Allowed tags: p, br, ul, ol, li, strong, b, em, i, u, h3-h6, a, code, pre, blockquote, span — anything else is stripped, and empty tags are dropped. Company, location and salary already show in the card and header, so start the body with content (e.g. <h3>About the role</h3>) instead of repeating a Company/Location/Salary metadata block.";
+
 const mcpHandler = createMcpHandler(
   (server) => {
     server.registerTool(
@@ -25,9 +31,7 @@ const mcpHandler = createMcpHandler(
           url: z.string().url().describe("The job posting URL (used to dedupe)."),
           title: z.string().describe("Job title."),
           company: z.string().describe("Hiring company."),
-          description: z
-            .string()
-            .describe("Full job description (plain text or HTML)."),
+          description: z.string().describe(DESCRIPTION_GUIDANCE),
           location: z.string().optional(),
           salary: z.string().optional(),
           tags: z.array(z.string()).optional(),
@@ -75,7 +79,7 @@ const mcpHandler = createMcpHandler(
           id: z.string().describe("The job id to update."),
           title: z.string().optional(),
           company: z.string().optional(),
-          description: z.string().optional(),
+          description: z.string().optional().describe(DESCRIPTION_GUIDANCE),
           location: z.string().nullable().optional(),
           salary: z.string().nullable().optional(),
           tags: z.array(z.string()).optional(),
