@@ -27,7 +27,9 @@ const mcpHandler = createMcpHandler(
           company: z.string().describe("Hiring company."),
           description: z
             .string()
-            .describe("Full job description (plain text or HTML)."),
+            .describe(
+              "Full job description (plain text or HTML). If you're adding from an email alert that only carries a title + link, FETCH the posting URL first and put the page's real description here — don't add the job with an empty/placeholder description. If the link can't be fetched (403 / login wall, e.g. Jobgether), pass an empty string and it will show as a 'lead' to fill in later.",
+            ),
           location: z.string().optional(),
           salary: z.string().optional(),
           tags: z.array(z.string()).optional(),
@@ -355,7 +357,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "List pending emails",
         description:
-          "List forwarded job-alert emails not yet processed. Each email is stored PRE-COMPACTED into small, link-preserving text (styles/tracking already stripped) — the full content is returned, so you don't need to manage length. Every posting appears inline as 'title (url)'. Use ONLY those real links (e.g. .../jobs/view/<id>, .../offer/<slug>); never fabricate search URLs. For each posting add_job (platform = the email's provider) with title, company, the real url and location; LinkedIn alert emails carry no job description, so open the link to fetch it if you can. Then mark_email_processed. Loop until none remain.",
+          "List forwarded job-alert emails not yet processed. Each email is stored PRE-COMPACTED into small, link-preserving text (styles/tracking already stripped) — the full content is returned, so you don't need to manage length. Every posting appears inline as 'title (url)'. Use ONLY those real links (e.g. .../jobs/view/<id>, .../offer/<slug>); never fabricate search URLs. The alert email itself does NOT contain the job description. For each posting: (1) FETCH its link with your web-fetch tool to read the full description — LinkedIn /jobs/view pages are public and work; if a link is blocked (403/login, e.g. Jobgether) leave the description empty so it shows as a 'lead'; (2) add_job (platform = the email's provider) with title, company, location, the real url, and the fetched description; (3) set_job_score; (4) mark_email_processed. Loop until none remain.",
         inputSchema: {
           limit: z.number().int().min(1).max(20).optional().describe("Max emails (default 5)."),
           htmlChars: z
