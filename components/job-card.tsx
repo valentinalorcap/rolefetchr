@@ -4,7 +4,7 @@ import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
 import type { JobWithRelations } from "@/lib/jobs";
 import { sourceMeta } from "@/lib/source-meta";
-import { relativeTime } from "@/lib/format";
+import { relativeTime, isLeadDescription } from "@/lib/format";
 
 export function JobCard({ job }: { job: JobWithRelations }) {
   const meta = sourceMeta(job.source, job.sourceLabel);
@@ -13,6 +13,7 @@ export function JobCard({ job }: { job: JobWithRelations }) {
       ? job.score.matchedSkills
       : job.tags;
   const notEligible = job.score ? !job.score.eligible : false;
+  const isLead = isLeadDescription(job.description);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl bg-card transition-colors hover:bg-accent">
@@ -46,8 +47,17 @@ export function JobCard({ job }: { job: JobWithRelations }) {
         </div>
       </div>
 
-      {chips.length > 0 ? (
+      {isLead || chips.length > 0 ? (
         <div className="mt-auto flex flex-wrap content-start items-start gap-1.5 px-4 pb-3.5 pt-5">
+          {isLead ? (
+            <span
+              className="rounded-lg px-2 py-1 text-xs font-semibold"
+              style={{ color: "#ffb340", backgroundColor: "rgba(255,179,64,.12)" }}
+              title="Lead from an email alert — open the source to read the full posting"
+            >
+              ⚡ Lead · no description
+            </span>
+          ) : null}
           {chips.slice(0, 6).map((c) => (
             <span
               key={c}

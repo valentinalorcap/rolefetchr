@@ -6,7 +6,7 @@ import { ScoreBadge } from "@/components/score-badge";
 import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
 import { sourceMeta } from "@/lib/source-meta";
-import { relativeTime } from "@/lib/format";
+import { relativeTime, isLeadDescription } from "@/lib/format";
 import { sanitizeDescription } from "@/lib/sanitize";
 
 const GRADIENT =
@@ -29,6 +29,7 @@ export default async function JobDetail({
   const notEligible = job.score ? !job.score.eligible : false;
   // Demos don't surface the candidate's gaps (weaknesses) for a role.
   const showGaps = scope.kind !== "demo";
+  const isLead = isLeadDescription(job.description);
 
   return (
     <div className="relative">
@@ -148,12 +149,35 @@ export default async function JobDetail({
           Apply on {meta.label} ↗
         </a>
 
-        <article
-          className="prose prose-invert prose-sm mt-8 max-w-none break-words prose-headings:font-semibold prose-a:text-primary"
-          dangerouslySetInnerHTML={{
-            __html: sanitizeDescription(job.description),
-          }}
-        />
+        {isLead ? (
+          <div
+            className="mt-8 rounded-2xl border border-border bg-card p-5 text-sm leading-relaxed"
+            style={{ color: "#ffb340", backgroundColor: "rgba(255,179,64,.06)" }}
+          >
+            <p className="font-semibold">⚡ Lead — no description in the alert</p>
+            <p className="mt-1.5 text-muted-foreground">
+              This came from a {meta.label} alert, which only carries the title and
+              link.{" "}
+              <a
+                href={job.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary underline"
+              >
+                Open it on {meta.label} ↗
+              </a>{" "}
+              to read the full posting, then paste it to your agent to fill in the
+              description and re-score it.
+            </p>
+          </div>
+        ) : (
+          <article
+            className="prose prose-invert prose-sm mt-8 max-w-none break-words prose-headings:font-semibold prose-a:text-primary"
+            dangerouslySetInnerHTML={{
+              __html: sanitizeDescription(job.description),
+            }}
+          />
+        )}
       </div>
     </div>
   );
