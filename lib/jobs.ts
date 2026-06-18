@@ -7,10 +7,13 @@ export const PAGE_SIZE = 50;
 // unless the user explicitly asks to "show all". Keeps the views to real matches.
 export const DEFAULT_MIN_SCORE = 30;
 
-// Each sort dimension has both directions.
+// Each date dimension (ingested / published) and the match/title dimensions
+// have both directions.
 export type SortKey =
-  | "recent" // newest published first
-  | "oldest" // oldest published first
+  | "ingested" // newest ingested first (fetchedAt desc)
+  | "ingested_asc" // oldest ingested first (fetchedAt asc)
+  | "posted" // newest published first (postedAt desc)
+  | "posted_asc" // oldest published first (postedAt asc)
   | "title" // A→Z
   | "title_desc" // Z→A
   | "score" // best match first
@@ -18,8 +21,10 @@ export type SortKey =
 export type FreshKey = "24h" | "48h" | "7d";
 
 const SORT_KEYS = new Set<SortKey>([
-  "recent",
-  "oldest",
+  "ingested",
+  "ingested_asc",
+  "posted",
+  "posted_asc",
   "title",
   "title_desc",
   "score",
@@ -161,7 +166,11 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
 
 function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
   switch (sort) {
-    case "oldest":
+    case "ingested_asc":
+      return { fetchedAt: "asc" };
+    case "posted":
+      return { postedAt: "desc" };
+    case "posted_asc":
       return { postedAt: "asc" };
     case "title":
       return { title: "asc" };
@@ -173,7 +182,9 @@ function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
       // can't rank by a match that hasn't been computed).
       return { score: { score: sort === "score" ? "desc" : "asc" } };
     default:
-      return { postedAt: "desc" }; // "recent"
+      // "ingested" — newest by ingestion date (when it landed in the app), not
+      // postedAt, which is unreliable for EMAIL/MANUAL jobs (defaults to now()).
+      return { fetchedAt: "desc" };
   }
 }
 
