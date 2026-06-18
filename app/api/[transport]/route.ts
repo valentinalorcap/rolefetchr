@@ -355,7 +355,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "List pending emails",
         description:
-          "List forwarded job-alert emails that haven't been processed yet, with their raw HTML. Extract the job postings from each (title, company, apply URL, location), add them with add_job (platform = the email's provider), then call mark_email_processed so they aren't returned again. This is how email-sourced jobs (LinkedIn, Jobgether, etc.) get into the app.",
+          "List forwarded job-alert emails not yet processed. Each email is stored PRE-COMPACTED into small, link-preserving text (styles/tracking already stripped) — the full content is returned, so you don't need to manage length. Every posting appears inline as 'title (url)'. Use ONLY those real links (e.g. .../jobs/view/<id>, .../offer/<slug>); never fabricate search URLs. For each posting add_job (platform = the email's provider) with title, company, the real url and location; LinkedIn alert emails carry no job description, so open the link to fetch it if you can. Then mark_email_processed. Loop until none remain.",
         inputSchema: {
           limit: z.number().int().min(1).max(20).optional().describe("Max emails (default 5)."),
           htmlChars: z
@@ -364,10 +364,10 @@ const mcpHandler = createMcpHandler(
             .min(1000)
             .max(200_000)
             .optional()
-            .describe("Cap on HTML length per email (default 60000)."),
+            .describe("Cap on content length per email (default 200000 — effectively the whole compacted email)."),
         },
       },
-      async ({ limit = 5, htmlChars = 60_000 }) => {
+      async ({ limit = 5, htmlChars = 200_000 }) => {
         const emails = await prisma.pendingEmail.findMany({
           where: { processedAt: null },
           orderBy: { receivedAt: "asc" },
