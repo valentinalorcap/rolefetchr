@@ -141,10 +141,10 @@ export function JobFilters({
           <option value="title_desc">Title Z–A</option>
         </select>
         <select value={vals.minScore} onChange={(e) => set("minScore", e.target.value)} className={select} aria-label="Min score">
-          <option value="30">Matches (30+)</option>
-          <option value="50">Strong (50+)</option>
-          <option value="70">Top (70+)</option>
-          <option value="0">Show all</option>
+          <option value="30">Score: 30+</option>
+          <option value="50">Score: 50+</option>
+          <option value="70">Score: 70+</option>
+          <option value="0">Score: any</option>
         </select>
         <select value={vals.eligible} onChange={(e) => set("eligible", e.target.value)} className={select} aria-label="Eligibility">
           <option value="">Eligibility: any</option>
