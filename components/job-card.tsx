@@ -35,15 +35,22 @@ export function JobCard({ job }: { job: JobWithRelations }) {
             Posted {relativeTime(job.postedAt)}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {job.score ? <ScoreBadge score={job.score.score} /> : null}
-          <Link
-            href={`/jobs/${job.id}`}
-            aria-label="Open job"
-            className="text-xl leading-none text-muted-foreground/50"
-          >
-            ›
-          </Link>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <div className="flex items-center gap-1.5">
+            {job.score ? <ScoreBadge score={job.score.score} /> : null}
+            <Link
+              href={`/jobs/${job.id}`}
+              aria-label="Open job"
+              className="text-xl leading-none text-muted-foreground/50"
+            >
+              ›
+            </Link>
+          </div>
+          {job.score ? (
+            <span className="whitespace-nowrap text-[11px] text-muted-foreground/60">
+              scored {relativeTime(job.score.evaluatedAt)}
+            </span>
+          ) : null}
         </div>
       </div>
 

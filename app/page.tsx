@@ -1,5 +1,4 @@
 import { JobListView } from "@/components/job-list-view";
-import { todayBase } from "@/lib/jobs";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -18,13 +17,12 @@ export default async function TodayPage({
       action="/"
       title="Today"
       subtitle={(total) =>
-        `${total} ${total === 1 ? "job" : "jobs"} ingested today`
+        `${total} ${total === 1 ? "job" : "jobs"} scored recently`
       }
-      emptyMessage="Nothing ingested today yet. The daily ingest runs each morning — check back later."
-      // Ingested-today is the locked base; the Ingested control defaults to 24h
-      // (shown applied). Show all of today's intake (no score floor).
-      base={todayBase()}
-      defaults={{ minScore: "0", ingested: "24h" }}
+      emptyMessage="Nothing scored in the last day. Your agent scores new jobs continuously — widen the Evaluated filter to see more."
+      // What's new to review = jobs scored in the last 24h (the Evaluated filter,
+      // shown applied). Change it to widen. No score floor.
+      defaults={{ minScore: "0", evaluated: "24h" }}
     />
   );
 }
