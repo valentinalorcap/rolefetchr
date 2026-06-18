@@ -1,25 +1,25 @@
-// Free, no-LLM relevance gate applied at ingestion: keep only software /
-// engineering roles, since that's the only thing this search targets.
+// Free, no-LLM relevance gate applied at ingestion: keep only the kind of role
+// this search targets — mid/senior web software/engineering — and drop the rest.
 //
-// It decides on the TITLE alone. Source tags (RemoteOK & friends) are unreliable
-// — they routinely attach tech tags like "Full-Stack Programming", "embedded" or
-// "data science" to clearly non-tech listings — so they're ignored here.
-//
-// Model: keep a job only if its title carries a concrete software/engineering
-// signal (ALLOW) and is not one of the "has a tech word but isn't a SWE role"
-// exceptions (DENY_OVERRIDE). Everything else is dropped. Validated against the
-// live dataset: no real software/engineering title is dropped.
+// It decides on the TITLE alone (source tags are unreliable). A job is kept only
+// when its title carries a software/engineering signal (ALLOW) and matches none
+// of the exclusions (DENY). The exclusions cover, beyond plain non-tech roles:
+//   - non-software engineering disciplines (civil, electrical, hardware, …);
+//   - specialties out of scope (devops/SRE/infra/platform, security);
+//   - "tech word but not a SWE role" (sales/solutions/support engineer, …);
+//   - seniorities not targeted (intern, junior, staff).
+// Validated against the live dataset: no targeted web/full-stack role is dropped.
 
-// Concrete software / engineering title signals.
+// Software / engineering title signals.
 const ALLOW =
-  /\b(software|developer|dev\b|engineer|engineering|programmer|coder|full[\s-]?stack|front[\s-]?end|back[\s-]?end|web\s?dev|sde|swe|devops|sre|site\sreliability|typescript|javascript|node(\.?js)?|nest(\.?js)?|next(\.?js)?|angular|react|vue|svelte|python|django|flask|fastapi|rails|golang|rust|kotlin|swift|scala|\.net|c#|c\+\+|\bphp\b|laravel|symfony|elixir|graphql|microservice|kubernetes|docker|terraform|data\sengineer|ml\sengineer|machine\slearning\sengineer|ai\sengineer|sdet|automation\sengineer|qa\sengineer|test\sengineer|mobile\s(developer|engineer)|ios\s(developer|engineer)|android\s(developer|engineer)|flutter|firmware|embedded\s(engineer|software|systems|developer)|blockchain\s(developer|engineer)|smart\scontract|security\sengineer|systems\sengineer|platform\sengineer|infrastructure\sengineer|cloud\sengineer|(software|solutions|cloud|data|systems|technical|principal|staff)\sarchitect|tech(nical)?\slead)\b/i;
+  /\b(software|developer|dev\b|engineer|engineering|programmer|coder|full[\s-]?stack|front[\s-]?end|back[\s-]?end|web\s?dev|sde|swe|typescript|javascript|node(\.?js)?|nest(\.?js)?|next(\.?js)?|angular|react|vue|svelte|python|django|flask|fastapi|rails|golang|rust|kotlin|swift|scala|\.net|c#|c\+\+|\bphp\b|laravel|symfony|elixir|graphql|mobile\s(developer|engineer)|ios\s(developer|engineer)|android\s(developer|engineer)|flutter|react\s?native|(software|solutions|application)\sarchitect|tech(nical)?\slead)\b/i;
 
-// Titles that contain a tech word but are not software-engineering roles.
-const DENY_OVERRIDE =
-  /\b(sales\sengineer|solutions\sengineer|support\sengineer|customer\ssuccess|implementation\s(engineer|specialist|consultant)|technical\s(recruiter|sourcer|writer|support|account)|developer\s(advocate|relations)|dev\srel|sales\sdevelopment|pre[\s-]?sales)\b/i;
+// Drop even if a title matches ALLOW.
+const DENY =
+  /\b((civil|electrical|mechanical|hardware|structural|chemical|industrial|aerospace|biomedical|environmental|manufacturing|controls|network|optical|petroleum|process|quality|safety|materials|geotechnical|nuclear|marine)\s?engineer|operations\sengineer|field\sengineer|data\s?cent(er|re)|hardware|devops|sre|site\s?reliability|reliability\sengineer|security\sengineer|infosec|cyber\s?security|platform\sengineer|infrastructure\sengineer|cloud\sengineer|systems\sengineer|sales\sengineer|solutions\sengineer|support\sengineer|customer\ssuccess|implementation\s(engineer|specialist|consultant)|technical\s(recruiter|sourcer|writer|support|account)|developer\s(advocate|relations)|dev\srel|sales\sdevelopment|pre[\s-]?sales|intern(ship)?|junior|\bjr\b|staff|entry[\s-]?level|graduate|trainee|apprentice)\b/i;
 
-/** True if the job is not a software/engineering role (drop it before storing). */
+/** True if the job is not a targeted software role (drop it before storing). */
 export function isIrrelevant(title: string): boolean {
-  if (DENY_OVERRIDE.test(title)) return true;
+  if (DENY.test(title)) return true;
   return !ALLOW.test(title);
 }
