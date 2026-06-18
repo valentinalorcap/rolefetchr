@@ -99,23 +99,16 @@ export function JobFilters({
 
   return (
     <div className="space-y-2">
-      <input
-        type="search"
-        value={vals.keyword}
-        onChange={(e) => onKeyword(e.target.value)}
-        placeholder="Search title, company…"
-        className={`${control} w-full`}
-        aria-label="Search"
-      />
+      {/* Row 1: free-text search + the three date filters. */}
       <div className="flex flex-wrap items-stretch gap-2">
-        <select value={vals.sort} onChange={(e) => set("sort", e.target.value)} className={select} aria-label="Sort">
-          <option value="score">Best match</option>
-          <option value="score_asc">Lowest match</option>
-          <option value="recent">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="title">Title A–Z</option>
-          <option value="title_desc">Title Z–A</option>
-        </select>
+        <input
+          type="search"
+          value={vals.keyword}
+          onChange={(e) => onKeyword(e.target.value)}
+          placeholder="Search title, company…"
+          className={`${control} flex-1 basis-[240px]`}
+          aria-label="Search"
+        />
         <select value={vals.fresh} onChange={(e) => set("fresh", e.target.value)} className={select} aria-label="Published">
           <option value="">Published: any</option>
           <option value="24h">Published: 24h</option>
@@ -135,6 +128,17 @@ export function JobFilters({
           <option value="24h">Evaluated: 24h</option>
           <option value="48h">Evaluated: 48h</option>
           <option value="7d">Evaluated: 7 days</option>
+        </select>
+      </div>
+      {/* Row 2: sort, score, eligibility, source, status + clear. */}
+      <div className="flex flex-wrap items-stretch gap-2">
+        <select value={vals.sort} onChange={(e) => set("sort", e.target.value)} className={select} aria-label="Sort">
+          <option value="score">Best match</option>
+          <option value="score_asc">Lowest match</option>
+          <option value="recent">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="title">Title A–Z</option>
+          <option value="title_desc">Title Z–A</option>
         </select>
         <select value={vals.minScore} onChange={(e) => set("minScore", e.target.value)} className={select} aria-label="Min score">
           <option value="30">Matches (30+)</option>
