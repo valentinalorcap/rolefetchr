@@ -1,42 +1,22 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { getScope } from "@/lib/scope";
-import { Sidebar } from "@/components/sidebar";
-import { DemoBanner } from "@/components/demo-banner";
 
 export const metadata: Metadata = {
   title: "job-matchmaker",
   description: "Remote jobs aggregated and scored against your CV.",
 };
 
-export default async function RootLayout({
+// Root layout is intentionally minimal — just <html>/<body>. The app chrome
+// (sidebar + demo banner) lives in the (app) route group's layout, so /signin
+// renders standalone and never shows stale demo chrome after the scope expires.
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const scope = await getScope();
-  const isDemo = scope?.kind === "demo";
-
   return (
     <html lang="en" className="dark">
-      <body className="antialiased">
-        {scope ? (
-          <div className="flex min-h-screen">
-            <Sidebar
-              isDemo={isDemo}
-              companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
-            />
-            <main className="min-w-0 flex-1">
-              {isDemo ? (
-                <DemoBanner label={scope.space.label} message={scope.space.message} />
-              ) : null}
-              {children}
-            </main>
-          </div>
-        ) : (
-          children
-        )}
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
