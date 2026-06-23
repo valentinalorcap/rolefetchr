@@ -14,7 +14,7 @@ export default async function TodayPage({
   return (
     <JobListView
       searchParams={params}
-      action="/"
+      action="/today"
       title="Today"
       subtitle={(total) =>
         `${total} ${total === 1 ? "job" : "jobs"} scored recently`
