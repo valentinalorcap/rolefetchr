@@ -10,8 +10,8 @@ import { exitDemoAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Today", icon: "📅" },
   { href: "/jobs", label: "Jobs", icon: "💼" },
+  { href: "/today", label: "Today", icon: "📅" },
   { href: "/best", label: "Best matches", icon: "🚀" },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },
@@ -21,8 +21,9 @@ const NAV = [
 const SOURCES = Object.values(Source);
 
 function navActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  if (href === "/jobs") return pathname === "/jobs" || pathname.startsWith("/jobs/");
+  // "/" forwards to /jobs, so Jobs owns the home and job-detail routes too.
+  if (href === "/jobs")
+    return pathname === "/" || pathname === "/jobs" || pathname.startsWith("/jobs/");
   return pathname === href;
 }
 
