@@ -46,7 +46,7 @@ export interface JobFilters {
   remoteOnly: boolean;
   minScore: number | null;
   eligible: boolean | null; // null = any; true/false filter on JobScore.eligible
-  status: ActionStatus | null;
+  status: ActionStatus | "NONE" | null; // "NONE" = jobs with no action at all
   sort: SortKey;
   take: number;
 }
@@ -87,9 +87,11 @@ export function parseJobFilters(params: RawParams): JobFilters {
   const validStatuses = new Set(Object.values(ActionStatus));
   const rawStatus = first(params.status)?.toUpperCase();
   const status =
-    rawStatus && validStatuses.has(rawStatus as ActionStatus)
-      ? (rawStatus as ActionStatus)
-      : null;
+    rawStatus === "NONE"
+      ? "NONE"
+      : rawStatus && validStatuses.has(rawStatus as ActionStatus)
+        ? (rawStatus as ActionStatus)
+        : null;
 
   const rawEligible = first(params.eligible);
   const eligible =
@@ -144,7 +146,10 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     where.score = { isNot: null };
   }
 
-  if (filters.status) {
+  if (filters.status === "NONE") {
+    // "No status": only jobs never saved/applied/archived — no action row at all.
+    where.action = { is: null };
+  } else if (filters.status) {
     // Explicit status filter (e.g. the Saved / Applied pages).
     where.action = { is: { status: filters.status } };
   } else {

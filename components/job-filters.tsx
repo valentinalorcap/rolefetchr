@@ -178,12 +178,37 @@ export function JobFilters({
           <option value="EMAIL">Email alerts</option>
         </select>
         {hideStatus ? null : (
-          <select value={vals.status} onChange={(e) => set("status", e.target.value)} className={sel(vals.status)} aria-label="Status">
-            <option value="">Active</option>
-            <option value="SAVED">Saved</option>
-            <option value="APPLIED">Applied</option>
-            <option value="NOT_INTERESTED">Archived</option>
-          </select>
+          <>
+            {/* "No status" (status=NONE) takes over this control: the select goes
+                dim and inert until the switch is turned off. */}
+            <select
+              value={vals.status === "NONE" ? "" : vals.status}
+              onChange={(e) => set("status", e.target.value)}
+              disabled={vals.status === "NONE"}
+              className={`${sel(vals.status === "NONE" ? "" : vals.status)} disabled:opacity-45`}
+              aria-label="Status"
+            >
+              <option value="">Active</option>
+              <option value="SAVED">Saved</option>
+              <option value="APPLIED">Applied</option>
+              <option value="NOT_INTERESTED">Archived</option>
+            </select>
+            <label
+              className={`${control} flex shrink-0 cursor-pointer select-none items-center gap-2 has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/40 ${vals.status === "NONE" ? marked : idle}`}
+            >
+              <input
+                type="checkbox"
+                checked={vals.status === "NONE"}
+                onChange={(e) => set("status", e.target.checked ? "NONE" : "")}
+                className="peer sr-only"
+              />
+              <span
+                aria-hidden
+                className="relative h-[18px] w-8 flex-none rounded-full bg-white/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-3.5 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-3.5"
+              />
+              No status
+            </label>
+          </>
         )}
         <button
           type="button"
