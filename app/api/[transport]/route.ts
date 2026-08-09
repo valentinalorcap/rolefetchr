@@ -291,7 +291,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Update scoring config",
         description:
-          "Update the scoring rubric and/or the extra candidate context (e.g. work-authorization, preferences, deal-breakers). Both are optional and partial — pass only what you want to change. Takes effect on the next scoring run; call rescore_all to re-score existing jobs. The rubric should keep instructing the model to return score/reasoning/matchedSkills/gaps.",
+          "Update the scoring rubric, the extra candidate context (e.g. work-authorization, preferences, deal-breakers), and/or the CV text jobs are scored against. All fields are optional and partial — pass only what you want to change. Takes effect on the next scoring run; call rescore_all to re-score existing jobs. The rubric should keep instructing the model to return score/reasoning/matchedSkills/gaps.",
         inputSchema: {
           rubric: z
             .string()
@@ -301,21 +301,25 @@ const mcpHandler = createMcpHandler(
             .string()
             .optional()
             .describe("Extra context about the candidate to inform scoring."),
+          cv: z
+            .string()
+            .optional()
+            .describe("Full replacement CV text (what get_cv returns)."),
         },
       },
-      async ({ rubric, candidateContext }) => {
-        if (rubric === undefined && candidateContext === undefined) {
+      async ({ rubric, candidateContext, cv }) => {
+        if (rubric === undefined && candidateContext === undefined && cv === undefined) {
           return {
             content: [{ type: "text", text: "Nothing to update." }],
             isError: true,
           };
         }
-        await updateScoringConfig({ rubric, candidateContext });
+        await updateScoringConfig({ rubric, candidateContext, cv });
         return {
           content: [
             {
               type: "text",
-              text: `Scoring config updated${rubric ? " (rubric)" : ""}${candidateContext !== undefined ? " (candidateContext)" : ""}. New jobs use it immediately; call rescore_all to re-score existing ones.`,
+              text: `Scoring config updated${rubric ? " (rubric)" : ""}${candidateContext !== undefined ? " (candidateContext)" : ""}${cv !== undefined ? " (cv)" : ""}. New jobs use it immediately; call rescore_all to re-score existing ones.`,
             },
           ],
         };
@@ -567,7 +571,7 @@ const mcpHandler = createMcpHandler(
           "Return the CV text the scoring is based on. Use it to align the candidate context / rubric edits with what the app actually scores against.",
         inputSchema: {},
       },
-      async () => ({ content: [{ type: "text", text: getCvText() }] }),
+      async () => ({ content: [{ type: "text", text: await getCvText() }] }),
     );
 
     server.registerTool(
