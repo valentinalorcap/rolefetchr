@@ -1,5 +1,3 @@
-import { readFileSync } from "fs";
-import path from "path";
 import { prisma } from "@/lib/prisma";
 
 // Default scoring rubric. Seeded into ScoringConfig (id=1) on first use; after
@@ -34,21 +32,13 @@ Return:
 - matchedSkills: concrete skills/requirements in the job that match her CV.
 - gaps: concrete requirements in the job she does not clearly meet.`;
 
-let cachedCv: string | null = null;
-
-function loadCv(): string {
-  if (cachedCv === null) {
-    cachedCv = readFileSync(
-      path.join(process.cwd(), "cv-context.md"),
-      "utf8",
-    ).trim();
-  }
-  return cachedCv;
-}
-
-/** The CV text the scoring is based on (from cv-context.md). */
-export function getCvText(): string {
-  return loadCv();
+/** The CV text the scoring is based on (from ScoringConfig in the DB). */
+export async function getCvText(): Promise<string> {
+  const config = await getScoringConfig();
+  return (
+    config.cv?.trim() ||
+    "No CV configured. Set it with the update_scoring_config tool (cv parameter)."
+  );
 }
 
 /** Read the scoring config, seeding the default rubric on first use. */
@@ -60,10 +50,11 @@ export async function getScoringConfig() {
   });
 }
 
-/** Update the rubric and/or the extra candidate context (partial). */
+/** Update the rubric, the extra candidate context, and/or the CV (partial). */
 export async function updateScoringConfig(input: {
   rubric?: string;
   candidateContext?: string | null;
+  cv?: string | null;
 }) {
   await getScoringConfig(); // ensure the row exists
   return prisma.scoringConfig.update({
@@ -73,6 +64,7 @@ export async function updateScoringConfig(input: {
       ...(input.candidateContext !== undefined
         ? { candidateContext: input.candidateContext }
         : {}),
+      ...(input.cv !== undefined ? { cv: input.cv } : {}),
     },
   });
 }
