@@ -1,22 +1,33 @@
 # job-matchmaker
 
-Job aggregator with AI scoring against a personal CV. Pulls remote jobs from multiple sources (RemoteOK, Remotive, WeWorkRemotely, Hacker News), scores each one 0–100 against the CV with Claude, and surfaces the top matches in a UI and a daily email digest.
+Personal job aggregator with agent-driven CV scoring. It pulls remote jobs from multiple sources into one place; an external AI agent (connected over MCP) scores each job 0–100 against a CV and writes the results back, and the app surfaces the top matches in a browsable UI with a saved/applied pipeline.
 
-**Why:** filtering out US-only roles by hand is slow. This automates the whole loop — fetch, score, browse, save/apply, and a digest of fresh high-fit jobs.
+**Why:** filtering job boards by hand for roles that actually fit — right stack, right seniority, truly remote, contractor-friendly — is slow. This automates the loop: fetch, score, browse, track.
+
+Live at [job-matchmaker-ruby.vercel.app](https://job-matchmaker-ruby.vercel.app) (single-tenant; sign-in is restricted to allowlisted accounts).
+
+## How it works
+
+Two decoupled pipelines feed a read-heavy UI through Postgres:
+
+1. **Ingestion** — a daily GitHub Actions cron hits `/api/cron/ingest`, which runs a set of source adapters (`lib/sources/`) and dedupes into the `Job` table. Jobs land unscored.
+2. **Scoring** — the app itself does not call any LLM. An external MCP-capable agent drives the loop: `get_unscored_jobs` → score each against `get_cv` + `get_scoring_config` → `set_job_score`. The CV, rubric, and candidate context are all stored in the database and editable over MCP, so scoring behavior can be tuned without a deploy.
+
+Sources: RemoteOK, Remotive, WeWorkRemotely (RSS), Hacker News "Who's hiring", Himalayas, JSearch (Google for Jobs via RapidAPI — covers LinkedIn/Indeed/Glassdoor), plus jobs added manually over MCP and jobs extracted from email alerts.
 
 ## Stack
 
-Next.js 15 (App Router, TS) · Tailwind + shadcn/ui · Neon Postgres + Prisma · Anthropic API (Claude Sonnet) with prompt caching · Resend (email) · Vercel · GitHub Actions cron.
+Next.js 15 (App Router, TypeScript) · Tailwind + shadcn/ui · Neon Postgres + Prisma · Auth.js v5 (GitHub OAuth, email allowlist) · Vercel · GitHub Actions cron.
 
 ## Local setup
 
 Requires Node 22 (see `.nvmrc`).
 
 ```bash
-nvm use            # Node 22
+nvm use
 npm install
-cp .env.example .env   # fill in DATABASE_URL, ANTHROPIC_API_KEY, RESEND_API_KEY, CRON_SECRET
-npm run db:migrate     # apply schema to your Neon database
+cp .env.example .env   # fill in the values documented there
+npm run db:migrate     # apply schema to your Postgres database
 npm run dev
 ```
 
@@ -35,9 +46,10 @@ Open http://localhost:3000.
 
 ## MCP server
 
-For sites that can't be scraped (LinkedIn, Welcome to the Jungle, Jobgether…), the app exposes an MCP server at `/api/mcp` so any MCP-capable agent can push jobs into the same pipeline — each is deduped, scored against the CV, and shown alongside the rest.
+The app exposes an MCP server at `/api/mcp` (bearer-authed with `MCP_TOKEN`). It is the control surface for the external agent that does all the AI work:
 
-Tools: `add_job` (platform, url, title, company, description, …) and `recent_matches`. Bearer-authed with `MCP_TOKEN`.
+- **Read**: `search_jobs`, `get_job`, `recent_matches`, `stats`, `get_unscored_jobs`, `get_cv`, `get_scoring_config`, `list_pending_emails`
+- **Write**: `add_job` (for sites that can't be scraped — LinkedIn, Welcome to the Jungle, …), `set_job_score`, `set_job_action`, `update_scoring_config` (rubric, candidate context, and CV), `mark_email_processed`, `rescore_all`
 
 Connect from Claude Code:
 
@@ -51,8 +63,4 @@ Claude Desktop: add a remote MCP connector with the same URL and `Authorization`
 
 ## Email-in
 
-For boards without an API (LinkedIn, Welcome to the Jungle, Jobgether…), their **email job alerts** become a source. A Google Apps Script (`scripts/gmail-job-alerts.gs`) running in your own Gmail forwards labeled alert emails to `POST /api/email-ingest`, which extracts the jobs with Claude, dedupes, ingests, and scores them — no domain, OAuth project, or app password required. Setup is in the script's header (~10 min, one time). The endpoint is authed with `CRON_SECRET`.
-
-## Status
-
-Built phase by phase per `PLAN.md`. See `CLAUDE.md` for architecture.
+Job boards without an API (LinkedIn, Welcome to the Jungle, Jobgether…) are covered through their **email job alerts**. A Google Apps Script (`scripts/gmail-job-alerts.gs`) running in your own Gmail forwards labeled alert emails to `POST /api/email-ingest` (authed with `CRON_SECRET`), which stores the raw email. The MCP agent then fetches pending emails, extracts the jobs, and adds them to the pipeline. No domain, OAuth project, or app password required — setup is in the script's header.
