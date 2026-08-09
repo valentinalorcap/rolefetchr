@@ -77,6 +77,7 @@ model ScoringConfig {
   id               Int      @id @default(1)
   rubric           String   @db.Text
   candidateContext String?  @db.Text
+  cv               String?  @db.Text // the CV text jobs are scored against
   updatedAt        DateTime @updatedAt
 }
 
