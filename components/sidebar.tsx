@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/jobs", label: "Jobs", icon: "💼" },
-  { href: "/today", label: "Today", icon: "📅" },
   { href: "/best", label: "Best matches", icon: "🚀" },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },

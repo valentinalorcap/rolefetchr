@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 /**
  * Returns to the list via the browser's back stack rather than a forward link,
  * so the list lands on its exact previous scroll position and active filters
- * (and on whichever view you actually came from — Jobs, Today, Saved, …).
+ * (and on whichever view you actually came from — Jobs, Best matches, Saved, …).
  * Falls back to `fallback` when the detail page was opened directly and there's
  * no in-app history to pop.
  */
