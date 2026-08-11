@@ -15,6 +15,7 @@ export default async function AppliedPage({
     <JobListView
       searchParams={params}
       action="/applied"
+      statusAction="/jobs"
       title="Applied"
       subtitle={(total) =>
         `${total} ${total === 1 ? "application" : "applications"} tracked`

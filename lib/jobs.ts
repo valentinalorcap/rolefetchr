@@ -37,6 +37,11 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: { score: true; action: true };
 }>;
 
+// The four status buckets a job can be viewed by. "NONE" = no action row at
+// all; "APPLIED" also covers the post-application stages (INTERVIEW/REJECTED).
+export const STATUS_KEYS = ["SAVED", "APPLIED", "NOT_INTERESTED", "NONE"] as const;
+export type StatusKey = (typeof STATUS_KEYS)[number];
+
 export interface JobFilters {
   sources: Source[];
   keyword: string | null;
@@ -46,7 +51,8 @@ export interface JobFilters {
   remoteOnly: boolean;
   minScore: number | null;
   eligible: boolean | null; // null = any; true/false filter on JobScore.eligible
-  status: ActionStatus | "NONE" | null; // "NONE" = jobs with no action at all
+  // Which status buckets to show (multi-select, OR-ed). All four = no filter.
+  statuses: StatusKey[];
   sort: SortKey;
   take: number;
 }
@@ -84,14 +90,16 @@ export function parseJobFilters(params: RawParams): JobFilters {
     minScore = Number.isFinite(n) && n > 0 ? n : null;
   }
 
-  const validStatuses = new Set(Object.values(ActionStatus));
-  const rawStatus = first(params.status)?.toUpperCase();
-  const status =
-    rawStatus === "NONE"
-      ? "NONE"
-      : rawStatus && validStatuses.has(rawStatus as ActionStatus)
-        ? (rawStatus as ActionStatus)
-        : null;
+  // Absent, or nothing valid in the list → all buckets (no status filter).
+  const rawStatus = first(params.status);
+  const parsedStatuses = (rawStatus ?? "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s): s is StatusKey => (STATUS_KEYS as readonly string[]).includes(s));
+  const statuses =
+    parsedStatuses.length > 0
+      ? STATUS_KEYS.filter((k) => parsedStatuses.includes(k))
+      : [...STATUS_KEYS];
 
   const rawEligible = first(params.eligible);
   const eligible =
@@ -106,7 +114,7 @@ export function parseJobFilters(params: RawParams): JobFilters {
     remoteOnly: first(params.remote) === "true",
     minScore,
     eligible,
-    status,
+    statuses,
     sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
@@ -137,24 +145,36 @@ function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     const since = new Date(Date.now() - FRESH_HOURS[filters.evaluated] * 3600_000);
     scoreIs.evaluatedAt = { gte: since };
   }
+  const allStatuses = filters.statuses.length === STATUS_KEYS.length;
+
   if (Object.keys(scoreIs).length > 0) {
     where.score = { is: scoreIs };
-  } else if (isScoreSort(filters.sort) && !filters.status) {
+  } else if (isScoreSort(filters.sort) && allStatuses) {
     // Match sorts rank scored jobs only; keep unscored out of those sorts. But
-    // on a status view (Saved/Applied) we want every job you flagged, scored or
-    // not — those pages must never hide an unscored saved/applied job.
+    // on a status-filtered view (e.g. Saved/Applied) we want every job you
+    // flagged, scored or not — those must never hide an unscored saved job.
     where.score = { isNot: null };
   }
 
-  if (filters.status === "NONE") {
-    // "No status": only jobs never saved/applied/archived — no action row at all.
-    where.action = { is: null };
-  } else if (filters.status) {
-    // Explicit status filter (e.g. the Saved / Applied pages).
-    where.action = { is: { status: filters.status } };
-  } else {
-    // Default view hides jobs marked not-interested (keeps null-action jobs).
-    where.NOT = { action: { is: { status: ActionStatus.NOT_INTERESTED } } };
+  if (!allStatuses) {
+    // OR the selected buckets. APPLIED covers the whole post-application
+    // pipeline; NONE matches jobs with no action row.
+    const or: Prisma.JobWhereInput[] = [];
+    const actionStatuses: ActionStatus[] = [];
+    for (const key of filters.statuses) {
+      if (key === "NONE") or.push({ action: { is: null } });
+      else if (key === "APPLIED")
+        actionStatuses.push(
+          ActionStatus.APPLIED,
+          ActionStatus.INTERVIEW,
+          ActionStatus.REJECTED,
+        );
+      else actionStatuses.push(key);
+    }
+    if (actionStatuses.length > 0)
+      or.push({ action: { is: { status: { in: actionStatuses } } } });
+    // Keyword search owns the top-level OR, so this one goes through AND.
+    where.AND = [{ OR: or }];
   }
 
   if (filters.keyword) {
