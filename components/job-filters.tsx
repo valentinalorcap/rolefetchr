@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { STATUS_KEYS, type JobFilters as Filters, type StatusKey } from "@/lib/jobs";
 
 const STATUS_LABELS: Record<StatusKey, string> = {
+  NONE: "Untagged",
   SAVED: "Saved",
   APPLIED: "Applied",
   NOT_INTERESTED: "Archived",
-  NONE: "No status",
 };
 
 const control =
@@ -29,9 +29,9 @@ const selectedStatuses = (value: string): StatusKey[] =>
 
 function statusSummary(value: string): string {
   const selected = selectedStatuses(value);
-  if (selected.length === STATUS_KEYS.length) return "Status: all";
-  if (selected.length === 1) return `Status: ${STATUS_LABELS[selected[0]]}`;
-  return `Status: ${selected.length} selected`;
+  if (selected.length === STATUS_KEYS.length) return "Tag: all";
+  if (selected.length === 1) return `Tag: ${STATUS_LABELS[selected[0]]}`;
+  return `Tag: ${selected.length} selected`;
 }
 
 export function JobFilters({

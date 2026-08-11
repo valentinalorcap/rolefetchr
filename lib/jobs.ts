@@ -37,9 +37,10 @@ export type JobWithRelations = Prisma.JobGetPayload<{
   include: { score: true; action: true };
 }>;
 
-// The four status buckets a job can be viewed by. "NONE" = no action row at
-// all; "APPLIED" also covers the post-application stages (INTERVIEW/REJECTED).
-export const STATUS_KEYS = ["SAVED", "APPLIED", "NOT_INTERESTED", "NONE"] as const;
+// The four tag buckets a job can be viewed by (canonical/display order —
+// untagged first). "NONE" = no action row at all; "APPLIED" also covers the
+// post-application stages (INTERVIEW/REJECTED).
+export const STATUS_KEYS = ["NONE", "SAVED", "APPLIED", "NOT_INTERESTED"] as const;
 export type StatusKey = (typeof STATUS_KEYS)[number];
 
 export interface JobFilters {
