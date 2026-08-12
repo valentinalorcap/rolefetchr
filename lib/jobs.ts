@@ -224,8 +224,8 @@ export interface JobListPage {
  * Fetch a filtered, sorted page of jobs plus whether more exist (for "load
  * more"). `demoCode` scopes the query to a tenant (null = the owner's real
  * jobs); it's always enforced. `base` is a tab-level constraint that the URL
- * filters can't remove (e.g. "eligible 50+" for Best matches, "ingested today"
- * for Today) — it's AND-ed with the user's filters.
+ * filters can't remove (e.g. "eligible 50+" for Best matches) — it's AND-ed
+ * with the user's filters.
  */
 export async function getJobs(
   filters: JobFilters,
