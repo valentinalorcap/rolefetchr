@@ -15,6 +15,7 @@ export default async function SavedPage({
     <JobListView
       searchParams={params}
       action="/saved"
+      statusAction="/jobs"
       title="Saved"
       subtitle={(total) => `${total} saved ${total === 1 ? "job" : "jobs"}`}
       emptyMessage="Nothing saved yet. Hit “Save” on a job to keep it here."

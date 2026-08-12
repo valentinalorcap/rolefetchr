@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { JobFilters as Filters } from "@/lib/jobs";
+import { STATUS_KEYS, type JobFilters as Filters, type StatusKey } from "@/lib/jobs";
+
+const STATUS_LABELS: Record<StatusKey, string> = {
+  NONE: "Untagged",
+  SAVED: "Saved",
+  APPLIED: "Applied",
+  NOT_INTERESTED: "Archived",
+};
 
 const control =
   "h-9 rounded-lg border px-3 text-sm font-medium text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/40";
@@ -13,14 +20,25 @@ const control =
 const idle = "border-border bg-card/80 hover:border-ring/60";
 const marked = "border-white/20 bg-primary/12 hover:border-ring/60";
 
-// Neutral = empty (any/all/active) or the "Score: any" zero floor.
+// Neutral = empty (any/all sources/all statuses) or the "Score: any" zero floor.
 const isApplied = (value: string) => value !== "" && value !== "0";
+
+// vals.status is "" (all buckets) or a comma-joined subset in canonical order.
+const selectedStatuses = (value: string): StatusKey[] =>
+  value ? (value.split(",") as StatusKey[]) : [...STATUS_KEYS];
+
+function statusSummary(value: string): string {
+  const selected = selectedStatuses(value);
+  if (selected.length === STATUS_KEYS.length) return "Tag: all";
+  if (selected.length === 1) return `Tag: ${STATUS_LABELS[selected[0]]}`;
+  return `Tag: ${selected.length} selected`;
+}
 
 export function JobFilters({
   filters,
   params,
   action = "/jobs",
-  hideStatus = false,
+  statusAction,
   hideIngested = false,
   companyLabel,
 }: {
@@ -29,7 +47,10 @@ export function JobFilters({
   // the rest. Filters apply instantly — there's no submit button.
   params: Record<string, string>;
   action?: string;
-  hideStatus?: boolean;
+  // Where changing the STATUS filter navigates to (defaults to `action`). The
+  // Saved/Applied/Archived tabs point this at /jobs: picking other statuses
+  // there means "browse", which those single-status tabs can't show.
+  statusAction?: string;
   hideIngested?: boolean;
   // In a demo, the MANUAL source is the company's own board — label it so.
   companyLabel?: string;
@@ -37,6 +58,25 @@ export function JobFilters({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Status popover open/close (closes on outside click or Escape).
+  const [statusOpen, setStatusOpen] = useState(false);
+  const statusRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!statusOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!statusRef.current?.contains(e.target as Node)) setStatusOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setStatusOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [statusOpen]);
 
   // Local copies of the controls so a selection shows INSTANTLY (the URL/server
   // round-trip happens in the background). Re-synced when the filters change.
@@ -53,7 +93,8 @@ export function JobFilters({
     minScore: filters.minScore != null ? filters.minScore.toString() : "0",
     eligible: filters.eligible === true ? "true" : filters.eligible === false ? "false" : "",
     source: filters.sources[0] ?? "",
-    status: filters.status ?? "",
+    // Canonical order; all four buckets = "" (the neutral, no-param state).
+    status: filters.statuses.length === STATUS_KEYS.length ? "" : filters.statuses.join(","),
   };
   const [vals, setVals] = useState(derived);
   useEffect(() => {
@@ -85,6 +126,26 @@ export function JobFilters({
     if (value) next[name] = value;
     else delete next[name];
     navigate(next);
+  }
+
+  function toggleStatus(key: StatusKey) {
+    const current = selectedStatuses(vals.status);
+    const next = current.includes(key)
+      ? current.filter((k) => k !== key)
+      : STATUS_KEYS.filter((k) => current.includes(k) || k === key);
+    if (next.length === 0) return; // at least one bucket stays selected
+    const value = next.length === STATUS_KEYS.length ? "" : next.join(",");
+    setVals((v) => ({ ...v, status: value }));
+    const nextParams = { ...params };
+    if (value) nextParams.status = value;
+    else delete nextParams.status;
+    // Status changes may leave the current tab (e.g. Saved → browse on /jobs).
+    const target = statusAction ?? action;
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(nextParams)) if (v) qs.set(k, v);
+    qs.delete("take");
+    const s = qs.toString();
+    startTransition(() => router.push(s ? `${target}?${s}` : target));
   }
 
   function onKeyword(value: string) {
@@ -177,39 +238,41 @@ export function JobFilters({
           <option value="JSEARCH">JSearch</option>
           <option value="EMAIL">Email alerts</option>
         </select>
-        {hideStatus ? null : (
-          <>
-            {/* "No status" (status=NONE) takes over this control: the select goes
-                dim and inert until the switch is turned off. */}
-            <select
-              value={vals.status === "NONE" ? "" : vals.status}
-              onChange={(e) => set("status", e.target.value)}
-              disabled={vals.status === "NONE"}
-              className={`${sel(vals.status === "NONE" ? "" : vals.status)} disabled:opacity-45`}
-              aria-label="Status"
+        <div ref={statusRef} className="relative flex-1 basis-[150px]">
+          <button
+            type="button"
+            onClick={() => setStatusOpen((o) => !o)}
+            aria-haspopup="true"
+            aria-expanded={statusOpen}
+            className={`${control} flex w-full items-center justify-between gap-2 ${isApplied(vals.status) ? marked : idle}`}
+          >
+            <span className="truncate">{statusSummary(vals.status)}</span>
+            <span
+              aria-hidden
+              className={`text-[10px] text-muted-foreground transition-transform ${statusOpen ? "rotate-180" : ""}`}
             >
-              <option value="">Active</option>
-              <option value="SAVED">Saved</option>
-              <option value="APPLIED">Applied</option>
-              <option value="NOT_INTERESTED">Archived</option>
-            </select>
-            <label
-              className={`${control} flex shrink-0 cursor-pointer select-none items-center gap-2 has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/40 ${vals.status === "NONE" ? marked : idle}`}
-            >
-              <input
-                type="checkbox"
-                checked={vals.status === "NONE"}
-                onChange={(e) => set("status", e.target.checked ? "NONE" : "")}
-                className="peer sr-only"
-              />
-              <span
-                aria-hidden
-                className="relative h-[18px] w-8 flex-none rounded-full bg-white/15 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-3.5 after:rounded-full after:bg-white after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-3.5"
-              />
-              No status
-            </label>
-          </>
-        )}
+              ▼
+            </span>
+          </button>
+          {statusOpen ? (
+            <div className="absolute left-0 top-full z-20 mt-1 w-52 rounded-xl border border-border bg-card p-1.5 shadow-xl">
+              {STATUS_KEYS.map((key) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-white/5"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedStatuses(vals.status).includes(key)}
+                    onChange={() => toggleStatus(key)}
+                    className="size-4 accent-primary"
+                  />
+                  {STATUS_LABELS[key]}
+                </label>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={clearAll}

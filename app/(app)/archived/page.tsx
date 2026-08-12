@@ -15,6 +15,7 @@ export default async function ArchivedPage({
     <JobListView
       searchParams={params}
       action="/archived"
+      statusAction="/jobs"
       title="Archived"
       subtitle={(total) => `${total} archived ${total === 1 ? "job" : "jobs"}`}
       emptyMessage="Nothing archived. Hit “Archive” on a job to move it here and out of the main views."

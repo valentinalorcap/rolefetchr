@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ActionStatus, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import {
   countJobs,
   getJobs,
@@ -42,10 +42,10 @@ export async function JobListView({
   title,
   subtitle,
   action,
+  statusAction,
   emptyMessage,
   defaults = {},
   demoDefaults,
-  forceStatus,
   base,
   hideIngested = false,
 }: {
@@ -53,10 +53,11 @@ export async function JobListView({
   title: string;
   subtitle: (total: number) => string;
   action: string;
+  // Where the status filter navigates on change (see JobFilters.statusAction).
+  statusAction?: string;
   emptyMessage: string;
   defaults?: RawParams;
   demoDefaults?: RawParams;
-  forceStatus?: ActionStatus;
   base?: Prisma.JobWhereInput;
   hideIngested?: boolean;
 }) {
@@ -79,7 +80,6 @@ export async function JobListView({
   }
 
   const filters = parseJobFilters(merged);
-  if (forceStatus !== undefined) filters.status = forceStatus;
 
   const total = await countJobs(filters, scope.demoCode, base);
 
@@ -95,7 +95,7 @@ export async function JobListView({
           filters={filters}
           params={params}
           action={action}
-          hideStatus={forceStatus !== undefined}
+          statusAction={statusAction}
           hideIngested={hideIngested}
           companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
         />
