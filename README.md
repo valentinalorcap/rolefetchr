@@ -1,5 +1,7 @@
 # rolefetchr
 
+[![CI](https://github.com/valentinalorcap/rolefetchr/actions/workflows/ci.yml/badge.svg)](https://github.com/valentinalorcap/rolefetchr/actions/workflows/ci.yml)
+
 Personal job aggregator with agent-driven CV scoring. It pulls remote jobs from multiple sources into one place; an external AI agent (connected over MCP) scores each job 0–100 against a CV and writes the results back, and the app surfaces the top matches in a browsable UI with a saved/applied pipeline.
 
 **Why:** filtering job boards by hand for roles that actually fit — right stack, right seniority, truly remote, contractor-friendly — is slow. This automates the loop: fetch, score, browse, track.

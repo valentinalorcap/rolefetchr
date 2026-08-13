@@ -18,7 +18,7 @@ model Job {
   source      Source
   // For source = MANUAL, the real platform name (e.g. "LinkedIn", "Jobgether").
   sourceLabel String?
-  externalId  String // ID original en la fuente
+  externalId  String // the job's original ID at its source
   title       String
   company     String
   description String   @db.Text

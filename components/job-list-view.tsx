@@ -85,8 +85,9 @@ export async function JobListView({
 
   // Suspense key = the filters that change the result set, minus pagination
   // (so "load more" appends without flashing the whole list to a skeleton).
-  const { take: _take, ...keyParams } = params;
-  const cardsKey = JSON.stringify(keyParams);
+  const cardsKey = JSON.stringify(
+    Object.fromEntries(Object.entries(params).filter(([k]) => k !== "take")),
+  );
 
   return (
     <PageShell title={title} subtitle={subtitle(total)}>
