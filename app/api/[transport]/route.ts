@@ -23,7 +23,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Add a job",
         description:
-          "Add a job from a site job-matchmaker can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). Deduped by URL. The app does NOT score — the job is added unscored; score it yourself with set_job_score (read get_scoring_config + get_cv for the rubric first). Returns the job id.",
+          "Add a job from a site rolefetchr can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). Deduped by URL. The app does NOT score — the job is added unscored; score it yourself with set_job_score (read get_scoring_config + get_cv for the rubric first). Returns the job id.",
         inputSchema: {
           platform: z
             .string()
@@ -232,7 +232,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Recent matches",
         description:
-          "List the top scored jobs in job-matchmaker (across all sources), best CV-fit first. Use to check what's already there before adding, or to review current matches.",
+          "List the top scored jobs in rolefetchr (across all sources), best CV-fit first. Use to check what's already there before adding, or to review current matches.",
         inputSchema: {
           limit: z.number().int().min(1).max(50).optional(),
           minScore: z.number().int().min(0).max(100).optional(),
@@ -427,7 +427,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Search jobs",
         description:
-          "Search/filter all jobs in job-matchmaker. Returns one line per job with its id (use get_job for full detail), score, title, company, source, and action status. Combine filters freely.",
+          "Search/filter all jobs in rolefetchr. Returns one line per job with its id (use get_job for full detail), score, title, company, source, and action status. Combine filters freely.",
         inputSchema: {
           query: z
             .string()
@@ -524,7 +524,7 @@ const mcpHandler = createMcpHandler(
       {
         title: "Stats",
         description:
-          "Overview of job-matchmaker: totals, jobs per source, score distribution, scored vs unscored, action counts, and the latest ingestion run per source (health).",
+          "Overview of rolefetchr: totals, jobs per source, score distribution, scored vs unscored, action counts, and the latest ingestion run per source (health).",
         inputSchema: {},
       },
       async () => {

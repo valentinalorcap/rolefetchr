@@ -43,7 +43,7 @@ export function Sidebar({
   return (
     <aside className="sticky top-0 hidden h-screen w-[272px] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-3.5 py-7 md:flex">
       <div className="px-2.5 pb-4 text-[25px] font-extrabold tracking-tight">
-        job-matchmaker
+        rolefetchr
       </div>
 
       <nav className="flex flex-col gap-0.5">

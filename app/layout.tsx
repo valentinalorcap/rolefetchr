@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "job-matchmaker",
+  title: "rolefetchr",
   description: "Remote jobs aggregated and scored against your CV.",
 };
 

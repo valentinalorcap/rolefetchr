@@ -3,7 +3,7 @@ import { signIn } from "@/auth";
 import { enterDemo } from "@/lib/scope";
 import { SubmitButton } from "@/components/submit-button";
 
-export const metadata = { title: "Sign in · job-matchmaker" };
+export const metadata = { title: "Sign in · rolefetchr" };
 
 const GRADIENT =
   "radial-gradient(120% 130% at 8% -10%, rgba(255,120,160,.34), transparent 55%)," +
@@ -33,7 +33,7 @@ export default async function SignInPage({
       />
       <div className="relative z-10 w-full max-w-sm rounded-2xl bg-card p-8 text-center">
         <div className="text-[25px] font-extrabold tracking-tight">
-          job-matchmaker
+          rolefetchr
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           Private workspace. Sign in to continue.

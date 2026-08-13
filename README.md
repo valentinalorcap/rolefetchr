@@ -1,10 +1,10 @@
-# job-matchmaker
+# rolefetchr
 
 Personal job aggregator with agent-driven CV scoring. It pulls remote jobs from multiple sources into one place; an external AI agent (connected over MCP) scores each job 0–100 against a CV and writes the results back, and the app surfaces the top matches in a browsable UI with a saved/applied pipeline.
 
 **Why:** filtering job boards by hand for roles that actually fit — right stack, right seniority, truly remote, contractor-friendly — is slow. This automates the loop: fetch, score, browse, track.
 
-Live at [job-matchmaker-ruby.vercel.app](https://job-matchmaker-ruby.vercel.app) (single-tenant; sign-in is restricted to allowlisted accounts).
+Live at [rolefetchr.valentinalorcap.com](https://rolefetchr.valentinalorcap.com) (single-tenant; sign-in is restricted to allowlisted accounts).
 
 ## How it works
 
@@ -54,7 +54,7 @@ The app exposes an MCP server at `/api/mcp` (bearer-authed with `MCP_TOKEN`). It
 Connect from Claude Code:
 
 ```bash
-claude mcp add --transport http job-matchmaker \
+claude mcp add --transport http rolefetchr \
   https://<your-app>.vercel.app/api/mcp \
   --header "Authorization: Bearer $MCP_TOKEN"
 ```
