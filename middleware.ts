@@ -13,6 +13,7 @@ export default auth((req) => {
     pathname.startsWith("/api") || // crons (CRON_SECRET), MCP (MCP_TOKEN), email-ingest, NextAuth
     pathname.startsWith("/_next") || // JS/CSS chunks, image optimizer
     pathname === "/favicon.ico" ||
+    pathname === "/icon.svg" || // app icon must load on /signin (no session yet)
     pathname === "/signin";
 
   // A demo access-code cookie also grants entry (the page revalidates it against
