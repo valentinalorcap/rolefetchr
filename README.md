@@ -8,9 +8,10 @@ Live at [rolefetchr.valentinalorcap.com](https://rolefetchr.valentinalorcap.com)
 
 **Try the demo:** open the [sign-in page](https://rolefetchr.valentinalorcap.com/signin) and enter access code **`DEMO2026`** — a fully interactive workspace with fictional sample jobs, scores, and sources.
 
-![Browsing roles — instant filters, CV-fit scores, and pipeline actions on every card](docs/screenshot-roles.png)
-
-![Role detail — the CV-fit score with the agent's reasoning and matched skills](docs/screenshot-job-detail.png)
+<p align="center">
+  <img src="docs/screenshot-roles.png" width="49%" alt="Browsing roles — instant filters, CV-fit scores, and pipeline actions on every card" />
+  <img src="docs/screenshot-job-detail.png" width="49%" alt="Role detail — the CV-fit score with the agent's reasoning and matched skills" />
+</p>
 
 ## How it works
 
