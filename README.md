@@ -6,6 +6,8 @@ Personal job aggregator with agent-driven CV scoring. It pulls remote jobs from 
 
 Live at [rolefetchr.valentinalorcap.com](https://rolefetchr.valentinalorcap.com) (single-tenant; sign-in is restricted to allowlisted accounts).
 
+**Try the demo:** open the [sign-in page](https://rolefetchr.valentinalorcap.com/signin) and enter access code **`DEMO2026`** — a fully interactive workspace with fictional sample jobs, scores, and sources.
+
 ## How it works
 
 Two decoupled pipelines feed a read-heavy UI through Postgres:
