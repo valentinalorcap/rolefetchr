@@ -8,6 +8,10 @@ Live at [rolefetchr.valentinalorcap.com](https://rolefetchr.valentinalorcap.com)
 
 **Try the demo:** open the [sign-in page](https://rolefetchr.valentinalorcap.com/signin) and enter access code **`DEMO2026`** — a fully interactive workspace with fictional sample jobs, scores, and sources.
 
+![Browsing roles — instant filters, CV-fit scores, and pipeline actions on every card](docs/screenshot-roles.png)
+
+![Role detail — the CV-fit score with the agent's reasoning and matched skills](docs/screenshot-job-detail.png)
+
 ## How it works
 
 Two decoupled pipelines feed a read-heavy UI through Postgres:
@@ -29,7 +33,7 @@ Requires Node 22 (see `.nvmrc`).
 nvm use
 npm install
 cp .env.example .env   # fill in the values documented there
-npm run db:migrate     # apply schema to your Postgres database
+npm run db:migrate     # apply the schema to the Postgres database from .env
 npm run dev
 ```
 
@@ -57,7 +61,7 @@ Connect from Claude Code:
 
 ```bash
 claude mcp add --transport http rolefetchr \
-  https://<your-app>.vercel.app/api/mcp \
+  https://<app-domain>/api/mcp \
   --header "Authorization: Bearer $MCP_TOKEN"
 ```
 
@@ -65,4 +69,4 @@ Claude Desktop: add a remote MCP connector with the same URL and `Authorization`
 
 ## Email-in
 
-Job boards without an API (LinkedIn, Welcome to the Jungle, Jobgether…) are covered through their **email job alerts**. A Google Apps Script (`scripts/gmail-job-alerts.gs`) running in your own Gmail forwards labeled alert emails to `POST /api/email-ingest` (authed with `CRON_SECRET`), which stores the raw email. The MCP agent then fetches pending emails, extracts the jobs, and adds them to the pipeline. No domain, OAuth project, or app password required — setup is in the script's header.
+Job boards without an API (LinkedIn, Welcome to the Jungle, Jobgether…) are covered through their **email job alerts**. A Google Apps Script (`scripts/gmail-job-alerts.gs`) running in the Gmail account that receives the alerts forwards the labeled emails to `POST /api/email-ingest` (authed with `CRON_SECRET`), which stores the raw email. The MCP agent then fetches pending emails, extracts the jobs, and adds them to the pipeline. No domain, OAuth project, or app password required — setup is in the script's header.
