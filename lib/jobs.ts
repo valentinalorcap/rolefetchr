@@ -121,7 +121,7 @@ export function parseJobFilters(params: RawParams): JobFilters {
   };
 }
 
-function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
+export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   const where: Prisma.JobWhereInput = {};
 
   if (filters.sources.length > 0) where.source = { in: filters.sources };
