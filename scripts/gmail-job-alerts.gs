@@ -18,7 +18,7 @@
  *     every 30 minutes.
  */
 
-const APP_URL = "https://rolefetchr.vercel.app";
+const APP_URL = "https://rolefetchr.valentinalorcap.com";
 const CRON_SECRET = "PASTE_YOUR_CRON_SECRET_HERE";
 
 const LABEL = "JobAlerts";

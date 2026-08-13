@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  APP_URL: https://rolefetchr.vercel.app
+  APP_URL: https://rolefetchr.valentinalorcap.com
 
 jobs:
   ingest:

@@ -4,7 +4,7 @@ Personal job aggregator with agent-driven CV scoring. It pulls remote jobs from 
 
 **Why:** filtering job boards by hand for roles that actually fit — right stack, right seniority, truly remote, contractor-friendly — is slow. This automates the loop: fetch, score, browse, track.
 
-Live at [rolefetchr.vercel.app](https://rolefetchr.vercel.app) (single-tenant; sign-in is restricted to allowlisted accounts).
+Live at [rolefetchr.valentinalorcap.com](https://rolefetchr.valentinalorcap.com) (single-tenant; sign-in is restricted to allowlisted accounts).
 
 ## How it works
 
