@@ -3,7 +3,7 @@ import { Source } from "@prisma/client";
 import type { JobSource, NormalizedJob } from "./types";
 
 const USER_AGENT =
-  "job-matchmaker/1.0 (+https://github.com/valentinalorcap/job-matchmaker)";
+  "rolefetchr/1.0 (+https://github.com/valentinalorcap/rolefetchr)";
 
 // Two category feeds matching Valentina's profile.
 const FEEDS = [

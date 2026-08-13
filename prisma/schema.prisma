@@ -1,4 +1,4 @@
-// Prisma schema for job-matchmaker.
+// Prisma schema for rolefetchr.
 // Models mirror PLAN.md Phase 0. Run `npm run db:migrate` after setting DATABASE_URL.
 
 generator client {

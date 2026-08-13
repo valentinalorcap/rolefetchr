@@ -3,7 +3,7 @@ import { BEST_MATCHES_BASE } from "@/lib/jobs";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export const metadata = { title: "Best matches · job-matchmaker" };
+export const metadata = { title: "Best matches · rolefetchr" };
 
 export default async function BestPage({
   searchParams,

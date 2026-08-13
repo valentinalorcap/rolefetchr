@@ -27,7 +27,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           headers: {
             Authorization: `Bearer ${account.access_token}`,
             Accept: "application/vnd.github+json",
-            "User-Agent": "job-matchmaker",
+            "User-Agent": "rolefetchr",
           },
         });
         if (res.ok) {

@@ -1,8 +1,8 @@
 /**
- * job-matchmaker — Gmail "email-in" forwarder (Google Apps Script).
+ * rolefetchr — Gmail "email-in" forwarder (Google Apps Script).
  *
  * Forwards labeled job-alert emails (LinkedIn, Welcome to the Jungle, Jobgether,
- * etc.) to job-matchmaker, which stores them verbatim. An external agent then
+ * etc.) to rolefetchr, which stores them verbatim. An external agent then
  * extracts the jobs over MCP and adds + scores them. No domain / OAuth project /
  * app password needed — this runs in your own Google account.
  *
@@ -18,7 +18,7 @@
  *     every 30 minutes.
  */
 
-const APP_URL = "https://job-matchmaker-ruby.vercel.app";
+const APP_URL = "https://rolefetchr.vercel.app";
 const CRON_SECRET = "PASTE_YOUR_CRON_SECRET_HERE";
 
 const LABEL = "JobAlerts";

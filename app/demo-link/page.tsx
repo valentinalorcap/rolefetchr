@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Demo link · job-matchmaker" };
+export const metadata = { title: "Demo link · rolefetchr" };
 
 // Placeholder target for the sourceUrl of demo-space jobs: their postings are
 // fictional, so instead of a dead external link they land here.

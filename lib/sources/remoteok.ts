@@ -4,7 +4,7 @@ import type { JobSource, NormalizedJob } from "./types";
 const API_URL = "https://remoteok.com/api";
 // RemoteOK rejects some default agents; identify ourselves per their API terms.
 const USER_AGENT =
-  "job-matchmaker/1.0 (+https://github.com/valentinalorcap/job-matchmaker)";
+  "rolefetchr/1.0 (+https://github.com/valentinalorcap/rolefetchr)";
 
 interface RemoteOkEntry {
   id?: string;

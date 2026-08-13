@@ -2,7 +2,7 @@ import { Source } from "@prisma/client";
 import type { JobSource, NormalizedJob } from "./types";
 
 const USER_AGENT =
-  "job-matchmaker/1.0 (+https://github.com/valentinalorcap/job-matchmaker)";
+  "rolefetchr/1.0 (+https://github.com/valentinalorcap/rolefetchr)";
 
 // Himalayas has a free public JSON API. Search by keyword to stay relevant
 // (the board carries every category); scoring narrows further.

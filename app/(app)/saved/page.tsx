@@ -2,7 +2,7 @@ import { JobListView } from "@/components/job-list-view";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export const metadata = { title: "Saved · job-matchmaker" };
+export const metadata = { title: "Saved · rolefetchr" };
 
 export default async function SavedPage({
   searchParams,
