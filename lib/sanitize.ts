@@ -29,7 +29,9 @@ const OPTIONS: sanitizeHtml.IOptions = {
     "p", "br", "ul", "ol", "li", "strong", "b", "em", "i", "u",
     "h3", "h4", "h5", "h6", "a", "code", "pre", "blockquote", "span",
   ],
-  allowedAttributes: { a: ["href", "title"] },
+  // rel/target must be allowed or the transform below adds them only for the
+  // sanitizer to strip them right back out.
+  allowedAttributes: { a: ["href", "title", "rel", "target"] },
   allowedSchemes: ["http", "https", "mailto"],
   transformTags: {
     // Demote source headings so they sit below the page's job title.
