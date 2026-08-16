@@ -236,6 +236,7 @@ export function JobFilters({
           <option value="HACKERNEWS">Hacker News</option>
           <option value="HIMALAYAS">Himalayas</option>
           <option value="JSEARCH">JSearch</option>
+          <option value="GETONBOARD">Get on Board</option>
           <option value="EMAIL">Email alerts</option>
         </select>
         <div ref={statusRef} className="relative flex-1 basis-[150px]">

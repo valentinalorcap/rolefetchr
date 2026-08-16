@@ -5,6 +5,7 @@ import { weWorkRemotelySource } from "./weworkremotely";
 import { hackerNewsSource } from "./hackernews";
 import { himalayasSource } from "./himalayas";
 import { jsearchSource } from "./jsearch";
+import { getOnBoardSource } from "./getonboard";
 
 /** All active job sources. Register new adapters here. */
 export const sources: JobSource[] = [
@@ -14,6 +15,7 @@ export const sources: JobSource[] = [
   hackerNewsSource,
   himalayasSource,
   jsearchSource,
+  getOnBoardSource,
 ];
 
 export type { JobSource, NormalizedJob } from "./types";
