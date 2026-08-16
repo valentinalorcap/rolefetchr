@@ -15,6 +15,7 @@ const SOURCES: Record<Source, SourceMeta> = {
   JSEARCH: { label: "JSearch", code: "JS", color: "#64d2ff" },
   EMAIL: { label: "Email", code: "✉", color: "#ff7a98" },
   MANUAL: { label: "Manual", code: "M", color: "#aeb0b6" },
+  GETONBOARD: { label: "Get on Board", code: "GB", color: "#ffd60a" },
 };
 
 // Common publishers that arrive via JSearch / Email / Manual (sourceLabel).

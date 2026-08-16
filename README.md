@@ -22,7 +22,7 @@ Two decoupled pipelines feed a read-heavy UI through Postgres:
 1. **Ingestion** — a daily GitHub Actions cron hits `/api/cron/ingest`, which runs a set of source adapters (`lib/sources/`) and dedupes into the `Job` table. Jobs land unscored.
 2. **Scoring** — the app itself does not call any LLM. An external MCP-capable agent drives the loop: `get_unscored_jobs` → score each against `get_cv` + `get_scoring_config` → `set_job_score`. The CV, rubric, and candidate context are all stored in the database and editable over MCP, so scoring behavior can be tuned without a deploy.
 
-Sources: RemoteOK, Remotive, WeWorkRemotely (RSS), Hacker News "Who's hiring", Himalayas, JSearch (Google for Jobs via RapidAPI — covers LinkedIn/Indeed/Glassdoor), plus jobs added manually over MCP and jobs extracted from email alerts.
+Sources: RemoteOK, Remotive, WeWorkRemotely (RSS), Hacker News "Who's hiring", Himalayas, JSearch (Google for Jobs via RapidAPI — covers LinkedIn/Indeed/Glassdoor), Get on Board (LatAm), plus jobs added manually over MCP and jobs extracted from email alerts.
 
 ## Stack
 

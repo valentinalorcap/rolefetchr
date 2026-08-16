@@ -132,6 +132,7 @@ enum Source {
   HIMALAYAS
   JSEARCH
   EMAIL
+  GETONBOARD
 }
 
 enum ActionStatus {
