@@ -54,6 +54,18 @@ export default async function SignInPage({
           </SubmitButton>
         </form>
 
+        {error === "AccessDenied" ? (
+          <p className="mt-3 text-xs leading-relaxed" style={{ color: "#e3909e" }}>
+            That GitHub account isn&apos;t allowed — this is a personal,
+            single-tenant app. Have an access code? Enter it below to explore
+            the demo.
+          </p>
+        ) : error && error !== "code" ? (
+          <p className="mt-3 text-xs" style={{ color: "#e3909e" }}>
+            Sign-in failed. Please try again.
+          </p>
+        ) : null}
+
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
           or

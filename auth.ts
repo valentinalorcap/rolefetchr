@@ -15,7 +15,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // the session check works under `next start` too (Vercel auto-trusts, but
   // being explicit avoids UntrustedHost surprises).
   trustHost: true,
-  pages: { signIn: "/signin" },
+  // Errors (e.g. AccessDenied from the allowlist) land on our themed sign-in
+  // page instead of Auth.js's unstyled defaults.
+  pages: { signIn: "/signin", error: "/signin" },
   callbacks: {
     // Reject anyone whose GitHub email isn't on the allowlist. GitHub hides
     // profile.email when email privacy is on, so fall back to the primary
