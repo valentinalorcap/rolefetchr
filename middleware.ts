@@ -24,7 +24,12 @@ export default auth((req) => {
   if (isPublic || req.auth || hasDemoCookie) return NextResponse.next();
 
   const url = new URL("/signin", req.nextUrl.origin);
-  url.searchParams.set("callbackUrl", req.nextUrl.href);
+  // Only deep links carry a return target, as a readable relative path — the
+  // home/default landing is where sign-in ends up anyway, so plain /signin.
+  const target = req.nextUrl.pathname + req.nextUrl.search;
+  if (target !== "/" && target !== "/jobs") {
+    url.searchParams.set("callbackUrl", target);
+  }
   return NextResponse.redirect(url);
 });
 

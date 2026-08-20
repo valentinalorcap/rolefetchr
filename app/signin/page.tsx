@@ -10,19 +10,28 @@ const GRADIENT =
   "radial-gradient(130% 140% at 100% -10%, rgba(110,160,255,.32), transparent 55%)";
 const FADE = "linear-gradient(180deg,#000 0%,#000 35%,transparent 100%)";
 
+// Return targets must be same-site relative paths (guards open redirects).
+function safePath(value: unknown): string {
+  return typeof value === "string" && value.startsWith("/") && !value.startsWith("//")
+    ? value
+    : "/";
+}
+
 async function enterDemoAction(formData: FormData) {
   "use server";
   const code = String(formData.get("code") ?? "").trim();
   const ok = code ? await enterDemo(code) : false;
-  redirect(ok ? "/" : "/signin?error=code");
+  const back = safePath(formData.get("callbackUrl"));
+  redirect(ok ? back : `/signin?error=code${back !== "/" ? `&callbackUrl=${encodeURIComponent(back)}` : ""}`);
 }
 
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, callbackUrl } = await searchParams;
+  const redirectTo = safePath(callbackUrl);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-6">
@@ -42,7 +51,7 @@ export default async function SignInPage({
         <form
           action={async () => {
             "use server";
-            await signIn("github", { redirectTo: "/" });
+            await signIn("github", { redirectTo });
           }}
           className="mt-7"
         >
@@ -73,6 +82,7 @@ export default async function SignInPage({
         </div>
 
         <form action={enterDemoAction} className="text-left">
+          <input type="hidden" name="callbackUrl" value={redirectTo} />
           <label
             htmlFor="code"
             className="text-xs font-medium text-muted-foreground"
