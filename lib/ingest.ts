@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sources, type JobSource } from "@/lib/sources";
 import { isIrrelevant } from "@/lib/relevance-filter";
-import { companyKey, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
+import { companyKey, detectWorkMode, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface IngestResult {
   source: string;
@@ -33,6 +33,7 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
         country: normalizeCountry(j.location),
         techs: extractTechs(j.title, j.tags, j.description),
         companyKey: companyKey(j.company),
+        workMode: detectWorkMode(j.location, j.title, j.tags),
       }));
 
     const existing = await prisma.job.findMany({

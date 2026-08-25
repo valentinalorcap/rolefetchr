@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   companyKey,
+  detectWorkMode,
   extractTechs,
   normalizeCountry,
   normalizeRegion,
@@ -89,6 +90,30 @@ describe("companyKey", () => {
 
   it("keeps distinct companies distinct", () => {
     expect(companyKey("Northwind Labs")).not.toBe(companyKey("Bluefern Systems"));
+  });
+});
+
+describe("detectWorkMode", () => {
+  it("detects hybrid from the location text", () => {
+    expect(detectWorkMode("Madrid (Hybrid)", "Software Engineer", [])).toBe("HYBRID");
+    expect(detectWorkMode("Madrid, híbrido", "Software Engineer", [])).toBe("HYBRID");
+  });
+
+  it("detects hybrid and on-site from title or tags", () => {
+    expect(detectWorkMode("Madrid", "Fullstack Engineer (Hybrid)", [])).toBe("HYBRID");
+    expect(detectWorkMode("Madrid", "Backend Engineer", ["on-site"])).toBe("ONSITE");
+    expect(detectWorkMode("Madrid, presencial", "Backend Engineer", [])).toBe("ONSITE");
+  });
+
+  it("prefers hybrid when both signals appear", () => {
+    expect(
+      detectWorkMode("Madrid — hybrid, 2 days on-site", "Engineer", []),
+    ).toBe("HYBRID");
+  });
+
+  it("defaults to remote otherwise (descriptions are not scanned)", () => {
+    expect(detectWorkMode("Remote (Worldwide)", "Software Engineer", ["react"])).toBe("REMOTE");
+    expect(detectWorkMode(null, "Software Engineer", [])).toBe("REMOTE");
   });
 });
 

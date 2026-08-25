@@ -5,6 +5,7 @@ import { BackButton } from "@/components/back-button";
 import { ScoreBadge } from "@/components/score-badge";
 import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
+import { WorkModeBadge } from "@/components/work-mode-badge";
 import { sourceMeta } from "@/lib/source-meta";
 import { relativeTime, isLeadDescription } from "@/lib/format";
 import { sanitizeDescription } from "@/lib/sanitize";
@@ -52,6 +53,7 @@ export default async function JobDetail({
               {job.title}
             </h1>
             <p className="mt-1 break-words text-muted-foreground">
+              <WorkModeBadge mode={job.workMode} className="mr-1.5 align-[1px]" />
               {job.company}
               {job.location ? ` · ${job.location}` : ""}
               {job.salary ? ` · ${job.salary}` : ""}
@@ -67,8 +69,8 @@ export default async function JobDetail({
             className="mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold"
             style={{ color: "#e3909e", backgroundColor: "rgba(227,144,158,.10)" }}
           >
-            ⚠️ Not eligible — requires relocation, on-site, or a work
-            permit/residency outside Spain
+            ⚠️ Not eligible — the role&apos;s location or work-authorization
+            requirements don&apos;t fit
           </div>
         ) : null}
 

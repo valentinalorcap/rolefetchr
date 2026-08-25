@@ -24,6 +24,10 @@ model Job {
   description String   @db.Text
   location    String?
   remote      Boolean  @default(true)
+  // How the role is worked. Sources are remote boards, so REMOTE is the
+  // default; HYBRID/ONSITE mark roles tied to an office (detected at ingestion
+  // or set explicitly via MCP) and get a distinct badge in the UI.
+  workMode    WorkMode @default(REMOTE)
   salary      String?
   tags        String[]
   sourceUrl   String
@@ -144,6 +148,12 @@ enum Source {
   JSEARCH
   EMAIL
   GETONBOARD
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
 }
 
 enum ActionStatus {
