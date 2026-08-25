@@ -10,6 +10,7 @@ import {
   type JobFilters as Filters,
 } from "@/lib/jobs";
 import { getScope } from "@/lib/scope";
+import { getFacets } from "@/lib/facets";
 import { PageShell } from "@/components/page-shell";
 import { JobFilters } from "@/components/job-filters";
 import { JobCard } from "@/components/job-card";
@@ -64,13 +65,22 @@ export async function JobListView({
   const scope = await getScope();
   if (!scope) redirect("/signin");
 
-  const merged: RawParams = {
+  const tabDefaults: RawParams = {
     ...defaults,
     ...(scope.kind === "demo" ? demoDefaults : undefined),
   };
+  const merged: RawParams = { ...tabDefaults };
   for (const [k, v] of Object.entries(searchParams)) {
     if (v !== undefined) merged[k] = v;
   }
+
+  // What the tab looks like with no URL params, so the drawer and chips can
+  // tell tab defaults (e.g. Saved's status, Best's 50+ floor) from user filters.
+  const defaultFilters = parseJobFilters(tabDefaults);
+  const baseline = {
+    minScore: defaultFilters.minScore,
+    statuses: defaultFilters.statuses,
+  };
 
   // Flatten to single-value strings for the client filter bar + load-more links.
   const params: Record<string, string> = {};
@@ -81,7 +91,10 @@ export async function JobListView({
 
   const filters = parseJobFilters(merged);
 
-  const total = await countJobs(filters, scope.demoCode, base);
+  const [total, facets] = await Promise.all([
+    countJobs(filters, scope.demoCode, base),
+    getFacets(scope.demoCode),
+  ]);
 
   // Suspense key = the filters that change the result set, minus pagination
   // (so "load more" appends without flashing the whole list to a skeleton).
@@ -94,11 +107,13 @@ export async function JobListView({
       <div className="mb-6">
         <JobFilters
           filters={filters}
+          baseline={baseline}
           params={params}
           action={action}
           statusAction={statusAction}
           hideIngested={hideIngested}
           companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
+          facets={facets}
         />
       </div>
 

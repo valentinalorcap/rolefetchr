@@ -1,5 +1,6 @@
 import { ActionStatus, Prisma, Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { searchTerms } from "@/lib/normalize";
 
 export const PAGE_SIZE = 50;
 
@@ -14,19 +15,17 @@ export type SortKey =
   | "ingested_asc" // oldest ingested first (fetchedAt asc)
   | "posted" // newest published first (postedAt desc)
   | "posted_asc" // oldest published first (postedAt asc)
-  | "title" // A→Z
-  | "title_desc" // Z→A
   | "score" // best match first
   | "score_asc"; // lowest match first
-export type FreshKey = "24h" | "48h" | "7d";
+// Date filters are day windows (1–30). The slider's right end means "any",
+// which parses to null. Legacy hour values ("24h"/"48h") still resolve.
+export const MAX_FRESH_DAYS = 30;
 
 const SORT_KEYS = new Set<SortKey>([
   "ingested",
   "ingested_asc",
   "posted",
   "posted_asc",
-  "title",
-  "title_desc",
   "score",
   "score_asc",
 ]);
@@ -46,23 +45,41 @@ export type StatusKey = (typeof STATUS_KEYS)[number];
 export interface JobFilters {
   sources: Source[];
   keyword: string | null;
-  fresh: FreshKey | null; // published within (postedAt)
-  ingested: FreshKey | null; // ingested within (fetchedAt)
-  evaluated: FreshKey | null; // scored within (JobScore.evaluatedAt)
+  fresh: number | null; // published within N days (postedAt)
+  ingested: number | null; // ingested within N days (fetchedAt)
+  evaluated: number | null; // scored within N days (JobScore.evaluatedAt)
   remoteOnly: boolean;
   minScore: number | null;
   eligible: boolean | null; // null = any; true/false filter on JobScore.eligible
   // Which status buckets to show (multi-select, OR-ed). All four = no filter.
   statuses: StatusKey[];
+  // Facet filters (multi-select, from the Filters drawer). Companies are
+  // normalized keys; regions/countries OR together into one location clause.
+  companies: string[];
+  regions: string[]; // Region values, plus "Unspecified" (= region IS NULL)
+  countries: string[];
+  techs: string[];
   sort: SortKey;
   take: number;
 }
 
-const FRESH_KEYS = new Set<FreshKey>(["24h", "48h", "7d"]);
-const asFresh = (v: string | undefined): FreshKey | null =>
-  v && FRESH_KEYS.has(v as FreshKey) ? (v as FreshKey) : null;
+const csv = (value: string | undefined): string[] =>
+  (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-const FRESH_HOURS: Record<FreshKey, number> = { "24h": 24, "48h": 48, "7d": 168 };
+// "14d"/"14" → 14 days (clamped to 1–30); legacy "24h"/"48h" → 1/2 days.
+const asDays = (v: string | undefined): number | null => {
+  if (!v) return null;
+  const m = /^(\d+)(d|h)?$/.exec(v.trim());
+  if (!m) return null;
+  const n = Number.parseInt(m[1], 10);
+  const days = m[2] === "h" ? Math.ceil(n / 24) : n;
+  return days > 0 ? Math.min(days, MAX_FRESH_DAYS) : null;
+};
+
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 3600_000);
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -109,13 +126,17 @@ export function parseJobFilters(params: RawParams): JobFilters {
   return {
     sources,
     keyword: first(params.keyword)?.trim() || null,
-    fresh: asFresh(first(params.fresh)),
-    ingested: asFresh(first(params.ingested)),
-    evaluated: asFresh(first(params.evaluated)),
+    fresh: asDays(first(params.fresh)),
+    ingested: asDays(first(params.ingested)),
+    evaluated: asDays(first(params.evaluated)),
     remoteOnly: first(params.remote) === "true",
     minScore,
     eligible,
     statuses,
+    companies: csv(first(params.company)).map((c) => c.toLowerCase()),
+    regions: csv(first(params.region)),
+    countries: csv(first(params.country)),
+    techs: csv(first(params.tech)).map((t) => t.toLowerCase()),
     sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
@@ -127,25 +148,15 @@ export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   if (filters.sources.length > 0) where.source = { in: filters.sources };
   if (filters.remoteOnly) where.remote = true;
 
-  if (filters.fresh) {
-    const since = new Date(Date.now() - FRESH_HOURS[filters.fresh] * 3600_000);
-    where.postedAt = { gte: since };
-  }
-
-  if (filters.ingested) {
-    const since = new Date(Date.now() - FRESH_HOURS[filters.ingested] * 3600_000);
-    where.fetchedAt = { gte: since };
-  }
+  if (filters.fresh) where.postedAt = { gte: daysAgo(filters.fresh) };
+  if (filters.ingested) where.fetchedAt = { gte: daysAgo(filters.ingested) };
 
   // Accumulate every score-relation condition into one `score.is` (each of these
   // implies the job has a score, so unscored jobs drop out for these filters).
   const scoreIs: Prisma.JobScoreWhereInput = {};
   if (filters.minScore !== null) scoreIs.score = { gte: filters.minScore };
   if (filters.eligible !== null) scoreIs.eligible = filters.eligible;
-  if (filters.evaluated) {
-    const since = new Date(Date.now() - FRESH_HOURS[filters.evaluated] * 3600_000);
-    scoreIs.evaluatedAt = { gte: since };
-  }
+  if (filters.evaluated) scoreIs.evaluatedAt = { gte: daysAgo(filters.evaluated) };
   const allStatuses = filters.statuses.length === STATUS_KEYS.length;
 
   if (Object.keys(scoreIs).length > 0) {
@@ -156,6 +167,10 @@ export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     // flagged, scored or not — those must never hide an unscored saved job.
     where.score = { isNot: null };
   }
+
+  // Every OR-shaped clause goes through AND so they compose instead of
+  // overwriting each other (status buckets, location, keyword search).
+  const and: Prisma.JobWhereInput[] = [];
 
   if (!allStatuses) {
     // OR the selected buckets. APPLIED covers the whole post-application
@@ -174,18 +189,46 @@ export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     }
     if (actionStatuses.length > 0)
       or.push({ action: { is: { status: { in: actionStatuses } } } });
-    // Keyword search owns the top-level OR, so this one goes through AND.
-    where.AND = [{ OR: or }];
+    and.push({ OR: or });
+  }
+
+  if (filters.companies.length > 0)
+    where.companyKey = { in: filters.companies };
+  if (filters.techs.length > 0) where.techs = { hasSome: filters.techs };
+
+  // Location: a selected region matches its whole bucket, a selected country
+  // matches exactly; the two OR together ("Europe" + "Chile" is valid).
+  if (filters.regions.length > 0 || filters.countries.length > 0) {
+    const or: Prisma.JobWhereInput[] = [];
+    const named = filters.regions.filter((r) => r !== "Unspecified");
+    if (named.length > 0) or.push({ region: { in: named } });
+    if (filters.regions.includes("Unspecified")) or.push({ region: null });
+    if (filters.countries.length > 0)
+      or.push({ country: { in: filters.countries } });
+    and.push({ OR: or });
   }
 
   if (filters.keyword) {
-    const contains = { contains: filters.keyword, mode: "insensitive" as const };
-    where.OR = [
-      { title: contains },
-      { company: contains },
-      { tags: { has: filters.keyword.toLowerCase() } },
-    ];
+    // Universal search: one box matches title, company, location, region,
+    // country, techs, and tags — with Spanish country/region synonyms
+    // ("alemania" also searches "germany").
+    const or: Prisma.JobWhereInput[] = [];
+    for (const term of searchTerms(filters.keyword)) {
+      const contains = { contains: term, mode: "insensitive" as const };
+      or.push(
+        { title: contains },
+        { company: contains },
+        { location: contains },
+        { region: contains },
+        { country: contains },
+        { techs: { has: term.toLowerCase() } },
+        { tags: { has: term.toLowerCase() } },
+      );
+    }
+    and.push({ OR: or });
   }
+
+  if (and.length > 0) where.AND = and;
 
   return where;
 }
@@ -198,10 +241,6 @@ function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
       return { postedAt: "desc" };
     case "posted_asc":
       return { postedAt: "asc" };
-    case "title":
-      return { title: "asc" };
-    case "title_desc":
-      return { title: "desc" };
     case "score":
     case "score_asc":
       // Match sorts. Unscored jobs are excluded from these in buildWhere (you

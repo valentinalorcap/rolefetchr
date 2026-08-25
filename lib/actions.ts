@@ -41,3 +41,16 @@ export async function clearJobAction(jobId: string) {
   await prisma.jobAction.deleteMany({ where: { jobId } });
   revalidatePath("/", "layout");
 }
+
+/** Live count for the Filters drawer: jobs matching a pending selection. */
+export async function countFilteredJobs(
+  params: Record<string, string>,
+  action?: string,
+): Promise<number> {
+  const scope = await getScope();
+  if (!scope) throw new Error("Not authorized.");
+  const { countJobs, parseJobFilters, BEST_MATCHES_BASE } = await import("@/lib/jobs");
+  // Best matches carries a tab-level constraint the URL can't remove.
+  const base = action === "/best" ? BEST_MATCHES_BASE : undefined;
+  return countJobs(parseJobFilters(params), scope.demoCode, base);
+}

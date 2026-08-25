@@ -111,9 +111,17 @@ describe("parseJobFilters", () => {
       expect(parseJobFilters({ eligible: "yes" }).eligible).toBeNull();
     });
 
-    it("validates freshness windows", () => {
-      expect(parseJobFilters({ fresh: "24h" }).fresh).toBe("24h");
+    it("parses day-based freshness windows, clamped to the slider range", () => {
+      expect(parseJobFilters({ fresh: "14d" }).fresh).toBe(14);
+      expect(parseJobFilters({ fresh: "7" }).fresh).toBe(7);
+      expect(parseJobFilters({ fresh: "90d" }).fresh).toBe(30);
+      expect(parseJobFilters({ fresh: "0d" }).fresh).toBeNull();
       expect(parseJobFilters({ fresh: "1w" }).fresh).toBeNull();
+    });
+
+    it("still accepts the legacy hour values", () => {
+      expect(parseJobFilters({ fresh: "24h" }).fresh).toBe(1);
+      expect(parseJobFilters({ ingested: "48h" }).ingested).toBe(2);
     });
 
     it("takes the first value when a param is repeated", () => {
