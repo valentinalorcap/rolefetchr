@@ -200,6 +200,26 @@ export function companyKey(company: string): string {
     .trim();
 }
 
+// Work mode: HYBRID/ONSITE are detected only from the short, deliberate fields
+// (location, title, tags) — descriptions mention "hybrid" too casually to be a
+// reliable signal. Everything else stays REMOTE (all auto sources are remote
+// boards). "Hybrid" wins when both appear ("hybrid, 2 days on-site").
+const HYBRID_PATTERN = /\bhybrid\b|h[ií]brid[oa]/i;
+const ONSITE_PATTERN = /\bon-?site\b|\bin[- ]office\b|\bpresencial\b/i;
+
+export type WorkModeValue = "REMOTE" | "HYBRID" | "ONSITE";
+
+export function detectWorkMode(
+  location: string | null | undefined,
+  title: string,
+  tags: string[],
+): WorkModeValue {
+  const text = [location ?? "", title, ...tags].join(" ");
+  if (HYBRID_PATTERN.test(text)) return "HYBRID";
+  if (ONSITE_PATTERN.test(text)) return "ONSITE";
+  return "REMOTE";
+}
+
 // Spanish → canonical English terms so the universal search understands both
 // ("alemania" finds Germany, "europa" finds Europe). Countries/regions only.
 const SEARCH_SYNONYMS: Record<string, string> = {

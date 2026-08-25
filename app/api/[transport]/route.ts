@@ -1,6 +1,6 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
-import { ActionStatus, Prisma, Source } from "@prisma/client";
+import { ActionStatus, Prisma, Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { addManualJob } from "@/lib/manual-ingest";
 import { getCvText, getScoringConfig, updateScoringConfig } from "@/lib/cv-context";
@@ -50,6 +50,12 @@ const mcpHandler = createMcpHandler(
             .optional()
             .describe(
               'Catalogued source (defaults to MANUAL). For demo data, vary it (REMOTEOK, JSEARCH, EMAIL, …) so the Sources sidebar looks realistic.',
+            ),
+          workMode: z
+            .nativeEnum(WorkMode)
+            .optional()
+            .describe(
+              "How the role is worked: REMOTE (default), HYBRID, or ONSITE. Set it explicitly when the posting says so; HYBRID/ONSITE jobs get a distinct badge in the UI. When omitted it's detected from location/title/tags.",
             ),
         },
       },
@@ -166,6 +172,7 @@ const mcpHandler = createMcpHandler(
           tags: j.tags,
           url: j.sourceUrl,
           postedAt: j.postedAt.toISOString(),
+          workMode: j.workMode,
           description: stripHtml(j.description).slice(0, descriptionChars),
         }));
         return {

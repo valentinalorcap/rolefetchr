@@ -1,6 +1,6 @@
-import { Source } from "@prisma/client";
+import { Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { companyKey, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
+import { companyKey, detectWorkMode, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface ManualJobInput {
   platform: string;
@@ -18,6 +18,9 @@ export interface ManualJobInput {
   // Override the catalogued source (defaults to MANUAL). Useful for demo data,
   // where varied sources populate the Sources sidebar realistically.
   source?: Source;
+  // How the role is worked. When omitted it's detected from location/title/tags
+  // (defaulting to REMOTE); HYBRID/ONSITE get a distinct badge in the UI.
+  workMode?: WorkMode;
 }
 
 /**
@@ -50,6 +53,9 @@ export async function addManualJob(input: ManualJobInput): Promise<{
     country: normalizeCountry(input.location),
     techs: extractTechs(input.title, input.tags ?? [], input.description),
     companyKey: companyKey(input.company),
+    workMode:
+      input.workMode ??
+      detectWorkMode(input.location, input.title, input.tags ?? []),
   };
 
   const existing = await prisma.job.findUnique({
@@ -63,7 +69,7 @@ export async function addManualJob(input: ManualJobInput): Promise<{
       source,
       externalId,
       sourceUrl: input.url,
-      remote: true,
+      remote: fields.workMode === WorkMode.REMOTE,
       postedAt,
       ...fields,
     },
