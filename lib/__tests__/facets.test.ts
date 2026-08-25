@@ -7,6 +7,7 @@ const row = (over: Partial<FacetRow>): FacetRow => ({
   region: "Europe",
   country: "Germany",
   techs: [],
+  source: "REMOTEOK",
   ...over,
 });
 
@@ -55,5 +56,17 @@ describe("buildFacets", () => {
   it("falls back to the lowercased name when companyKey is missing", () => {
     const facets = buildFacets([row({ company: "Acme", companyKey: null })]);
     expect(facets.companies[0]).toEqual({ key: "acme", label: "Acme", count: 1 });
+  });
+
+  it("counts sources, most frequent first", () => {
+    const facets = buildFacets([
+      row({ source: "REMOTIVE" }),
+      row({ source: "REMOTIVE" }),
+      row({ source: "MANUAL" }),
+    ]);
+    expect(facets.sources).toEqual([
+      { name: "REMOTIVE", count: 2 },
+      { name: "MANUAL", count: 1 },
+    ]);
   });
 });

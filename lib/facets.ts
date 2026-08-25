@@ -1,3 +1,4 @@
+import type { Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { REGIONS } from "@/lib/normalize";
 
@@ -19,10 +20,15 @@ export interface TechFacet {
   name: string;
   count: number;
 }
+export interface SourceFacet {
+  name: Source;
+  count: number;
+}
 export interface Facets {
   companies: CompanyFacet[];
   locations: LocationFacet[];
   techs: TechFacet[];
+  sources: SourceFacet[];
 }
 
 export interface FacetRow {
@@ -31,6 +37,7 @@ export interface FacetRow {
   region: string | null;
   country: string | null;
   techs: string[];
+  source: Source;
 }
 
 // Companies beyond this stay reachable via search/keyword, just not listed.
@@ -85,14 +92,21 @@ export function buildFacets(rows: FacetRow[]): Facets {
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-  return { companies, locations, techs };
+  // Sources: counts per Source enum value, most frequent first.
+  const sourceMap = new Map<Source, number>();
+  for (const r of rows) sourceMap.set(r.source, (sourceMap.get(r.source) ?? 0) + 1);
+  const sources = [...sourceMap.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  return { companies, locations, techs, sources };
 }
 
 /** Facets for the tenant's whole job set (one indexed query + JS grouping). */
 export async function getFacets(demoCode: string | null): Promise<Facets> {
   const rows = await prisma.job.findMany({
     where: { demoCode },
-    select: { company: true, companyKey: true, region: true, country: true, techs: true },
+    select: { company: true, companyKey: true, region: true, country: true, techs: true, source: true },
   });
   return buildFacets(rows);
 }
