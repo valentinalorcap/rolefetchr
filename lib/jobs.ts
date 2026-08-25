@@ -15,8 +15,6 @@ export type SortKey =
   | "ingested_asc" // oldest ingested first (fetchedAt asc)
   | "posted" // newest published first (postedAt desc)
   | "posted_asc" // oldest published first (postedAt asc)
-  | "title" // A→Z
-  | "title_desc" // Z→A
   | "score" // best match first
   | "score_asc"; // lowest match first
 // Date filters are day windows (1–30). The slider's right end means "any",
@@ -28,8 +26,6 @@ const SORT_KEYS = new Set<SortKey>([
   "ingested_asc",
   "posted",
   "posted_asc",
-  "title",
-  "title_desc",
   "score",
   "score_asc",
 ]);
@@ -245,10 +241,6 @@ function buildOrderBy(sort: SortKey): Prisma.JobOrderByWithRelationInput {
       return { postedAt: "desc" };
     case "posted_asc":
       return { postedAt: "asc" };
-    case "title":
-      return { title: "asc" };
-    case "title_desc":
-      return { title: "desc" };
     case "score":
     case "score_asc":
       // Match sorts. Unscored jobs are excluded from these in buildWhere (you

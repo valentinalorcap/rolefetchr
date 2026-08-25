@@ -111,8 +111,6 @@ export function JobFilters({
           <option value="ingested_asc">Ingested: oldest</option>
           <option value="posted">Published: newest</option>
           <option value="posted_asc">Published: oldest</option>
-          <option value="title">Title A–Z</option>
-          <option value="title_desc">Title Z–A</option>
         </select>
         <FiltersDrawer
           facets={facets}
