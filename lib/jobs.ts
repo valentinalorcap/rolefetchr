@@ -1,5 +1,6 @@
 import { ActionStatus, Prisma, Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { searchTerms } from "@/lib/normalize";
 
 export const PAGE_SIZE = 50;
 
@@ -54,9 +55,21 @@ export interface JobFilters {
   eligible: boolean | null; // null = any; true/false filter on JobScore.eligible
   // Which status buckets to show (multi-select, OR-ed). All four = no filter.
   statuses: StatusKey[];
+  // Facet filters (multi-select, from the Filters drawer). Companies are
+  // normalized keys; regions/countries OR together into one location clause.
+  companies: string[];
+  regions: string[]; // Region values, plus "Unspecified" (= region IS NULL)
+  countries: string[];
+  techs: string[];
   sort: SortKey;
   take: number;
 }
+
+const csv = (value: string | undefined): string[] =>
+  (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 const FRESH_KEYS = new Set<FreshKey>(["24h", "48h", "7d"]);
 const asFresh = (v: string | undefined): FreshKey | null =>
@@ -116,6 +129,10 @@ export function parseJobFilters(params: RawParams): JobFilters {
     minScore,
     eligible,
     statuses,
+    companies: csv(first(params.company)).map((c) => c.toLowerCase()),
+    regions: csv(first(params.region)),
+    countries: csv(first(params.country)),
+    techs: csv(first(params.tech)).map((t) => t.toLowerCase()),
     sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
@@ -157,6 +174,10 @@ export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     where.score = { isNot: null };
   }
 
+  // Every OR-shaped clause goes through AND so they compose instead of
+  // overwriting each other (status buckets, location, keyword search).
+  const and: Prisma.JobWhereInput[] = [];
+
   if (!allStatuses) {
     // OR the selected buckets. APPLIED covers the whole post-application
     // pipeline; NONE matches jobs with no action row.
@@ -174,18 +195,46 @@ export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
     }
     if (actionStatuses.length > 0)
       or.push({ action: { is: { status: { in: actionStatuses } } } });
-    // Keyword search owns the top-level OR, so this one goes through AND.
-    where.AND = [{ OR: or }];
+    and.push({ OR: or });
+  }
+
+  if (filters.companies.length > 0)
+    where.companyKey = { in: filters.companies };
+  if (filters.techs.length > 0) where.techs = { hasSome: filters.techs };
+
+  // Location: a selected region matches its whole bucket, a selected country
+  // matches exactly; the two OR together ("Europe" + "Chile" is valid).
+  if (filters.regions.length > 0 || filters.countries.length > 0) {
+    const or: Prisma.JobWhereInput[] = [];
+    const named = filters.regions.filter((r) => r !== "Unspecified");
+    if (named.length > 0) or.push({ region: { in: named } });
+    if (filters.regions.includes("Unspecified")) or.push({ region: null });
+    if (filters.countries.length > 0)
+      or.push({ country: { in: filters.countries } });
+    and.push({ OR: or });
   }
 
   if (filters.keyword) {
-    const contains = { contains: filters.keyword, mode: "insensitive" as const };
-    where.OR = [
-      { title: contains },
-      { company: contains },
-      { tags: { has: filters.keyword.toLowerCase() } },
-    ];
+    // Universal search: one box matches title, company, location, region,
+    // country, techs, and tags — with Spanish country/region synonyms
+    // ("alemania" also searches "germany").
+    const or: Prisma.JobWhereInput[] = [];
+    for (const term of searchTerms(filters.keyword)) {
+      const contains = { contains: term, mode: "insensitive" as const };
+      or.push(
+        { title: contains },
+        { company: contains },
+        { location: contains },
+        { region: contains },
+        { country: contains },
+        { techs: { has: term.toLowerCase() } },
+        { tags: { has: term.toLowerCase() } },
+      );
+    }
+    and.push({ OR: or });
   }
+
+  if (and.length > 0) where.AND = and;
 
   return where;
 }

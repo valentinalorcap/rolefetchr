@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sources, type JobSource } from "@/lib/sources";
 import { isIrrelevant } from "@/lib/relevance-filter";
+import { companyKey, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface IngestResult {
   source: string;
@@ -22,7 +23,17 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
     const fetched = await src.fetchJobs();
     // Free relevance gate: drop clearly non-software roles before storing, so
     // they don't clutter the app or cost the external scoring agent tokens.
-    const jobs = fetched.filter((j) => !isIrrelevant(j.title));
+    // Then derive the normalized filter columns (region/country/techs/company
+    // identity) — the facet filters and universal search run on these.
+    const jobs = fetched
+      .filter((j) => !isIrrelevant(j.title))
+      .map((j) => ({
+        ...j,
+        region: normalizeRegion(j.location),
+        country: normalizeCountry(j.location),
+        techs: extractTechs(j.title, j.tags, j.description),
+        companyKey: companyKey(j.company),
+      }));
 
     const existing = await prisma.job.findMany({
       where: {

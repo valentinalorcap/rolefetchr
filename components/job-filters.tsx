@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { STATUS_KEYS, type JobFilters as Filters, type StatusKey } from "@/lib/jobs";
+import type { Facets } from "@/lib/facets";
+import { FilterChips, FiltersDrawer } from "@/components/filters-drawer";
 
 const STATUS_LABELS: Record<StatusKey, string> = {
   NONE: "Untagged",
@@ -41,8 +43,11 @@ export function JobFilters({
   statusAction,
   hideIngested = false,
   companyLabel,
+  facets,
 }: {
   filters: Filters;
+  // Facet options + counts for the Filters drawer, scoped to the tenant.
+  facets: Facets;
   // The current effective query (defaults + URL), so changing one control keeps
   // the rest. Filters apply instantly — there's no submit button.
   params: Record<string, string>;
@@ -274,6 +279,7 @@ export function JobFilters({
             </div>
           ) : null}
         </div>
+        <FiltersDrawer facets={facets} filters={filters} params={params} action={action} />
         <button
           type="button"
           onClick={clearAll}
@@ -282,6 +288,7 @@ export function JobFilters({
           Clear
         </button>
       </div>
+      <FilterChips facets={facets} filters={filters} params={params} action={action} />
     </div>
   );
 }

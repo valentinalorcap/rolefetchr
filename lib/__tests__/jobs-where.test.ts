@@ -63,10 +63,8 @@ describe("buildWhere — tag buckets", () => {
 
   it("keeps the keyword OR separate from the bucket OR", () => {
     const where = buildWhere(filters({ status: "SAVED", keyword: "react" }));
-    // Keyword owns the top-level OR (title/company/tags)…
-    expect(where.OR).toHaveLength(3);
-    // …while the bucket filter lives under AND, so both apply.
-    expect(where.AND).toHaveLength(1);
+    // Both live under AND as independent OR groups, so they compose.
+    expect(where.AND).toHaveLength(2);
   });
 });
 
@@ -103,12 +101,57 @@ describe("buildWhere — sources and keyword", () => {
     expect(where.source).toEqual({ in: [Source.REMOTEOK] });
   });
 
-  it("searches title, company, and tags (tags lowercased)", () => {
+  it("universal search matches every text/facet column", () => {
     const where = buildWhere(filters({ keyword: "React" }));
-    expect(where.OR).toEqual([
+    const or = (where.AND as Array<{ OR: unknown[] }>)[0].OR;
+    expect(or).toEqual([
       { title: { contains: "React", mode: "insensitive" } },
       { company: { contains: "React", mode: "insensitive" } },
+      { location: { contains: "React", mode: "insensitive" } },
+      { region: { contains: "React", mode: "insensitive" } },
+      { country: { contains: "React", mode: "insensitive" } },
+      { techs: { has: "react" } },
       { tags: { has: "react" } },
     ]);
+  });
+
+  it("expands Spanish country synonyms in the search", () => {
+    const where = buildWhere(filters({ keyword: "alemania" }));
+    const or = (where.AND as Array<{ OR: unknown[] }>)[0].OR;
+    // Both "alemania" and "germany" are searched → 7 clauses per term.
+    expect(or).toHaveLength(14);
+    expect(or).toContainEqual({ country: { contains: "germany", mode: "insensitive" } });
+  });
+});
+
+describe("buildWhere — drawer facets", () => {
+  it("filters companies by normalized key", () => {
+    const where = buildWhere(filters({ company: "huzzle,northwind labs" }));
+    expect(where.companyKey).toEqual({ in: ["huzzle", "northwind labs"] });
+  });
+
+  it("filters techs with hasSome", () => {
+    const where = buildWhere(filters({ tech: "react,node" }));
+    expect(where.techs).toEqual({ hasSome: ["react", "node"] });
+  });
+
+  it("ORs regions and countries into one location clause", () => {
+    const where = buildWhere(filters({ region: "Europe", country: "Chile" }));
+    expect(where.AND).toContainEqual({
+      OR: [{ region: { in: ["Europe"] } }, { country: { in: ["Chile"] } }],
+    });
+  });
+
+  it('maps the "Unspecified" region to region IS NULL', () => {
+    const where = buildWhere(filters({ region: "Unspecified" }));
+    expect(where.AND).toContainEqual({ OR: [{ region: null }] });
+  });
+
+  it("composes facets with tag buckets and search", () => {
+    const where = buildWhere(
+      filters({ status: "SAVED", region: "Europe", keyword: "react", tech: "node" }),
+    );
+    expect(where.techs).toEqual({ hasSome: ["node"] });
+    expect(where.AND).toHaveLength(3); // buckets + location + search
   });
 });

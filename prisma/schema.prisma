@@ -30,6 +30,14 @@ model Job {
   postedAt    DateTime
   fetchedAt   DateTime @default(now())
 
+  // Derived at ingestion from the free-text fields (see lib/normalize.ts) so
+  // the facet filters and universal search run on clean, indexed columns.
+  // `location` itself stays untouched and is what the UI displays.
+  region     String? // one of the REGIONS buckets, e.g. "Europe"
+  country    String? // canonical English name when the location names one
+  techs      String[] // curated tech vocabulary detected in title/tags/description
+  companyKey String? // normalized company identity ("Huzzle Ltd" → "huzzle")
+
   // Tenant scope. null = the owner's real jobs. A DemoSpace.code value means the
   // job belongs to that read-but-also-interactive demo space, kept fully
   // isolated from the owner's data and from other spaces.
@@ -42,6 +50,9 @@ model Job {
   @@index([postedAt])
   @@index([fetchedAt])
   @@index([demoCode])
+  @@index([region])
+  @@index([country])
+  @@index([companyKey])
 }
 
 model JobScore {

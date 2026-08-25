@@ -10,6 +10,7 @@ import {
   type JobFilters as Filters,
 } from "@/lib/jobs";
 import { getScope } from "@/lib/scope";
+import { getFacets } from "@/lib/facets";
 import { PageShell } from "@/components/page-shell";
 import { JobFilters } from "@/components/job-filters";
 import { JobCard } from "@/components/job-card";
@@ -81,7 +82,10 @@ export async function JobListView({
 
   const filters = parseJobFilters(merged);
 
-  const total = await countJobs(filters, scope.demoCode, base);
+  const [total, facets] = await Promise.all([
+    countJobs(filters, scope.demoCode, base),
+    getFacets(scope.demoCode),
+  ]);
 
   // Suspense key = the filters that change the result set, minus pagination
   // (so "load more" appends without flashing the whole list to a skeleton).
@@ -99,6 +103,7 @@ export async function JobListView({
           statusAction={statusAction}
           hideIngested={hideIngested}
           companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
+          facets={facets}
         />
       </div>
 

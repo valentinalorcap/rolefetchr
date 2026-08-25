@@ -1,5 +1,6 @@
 import { Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { companyKey, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface ManualJobInput {
   platform: string;
@@ -44,6 +45,11 @@ export async function addManualJob(input: ManualJobInput): Promise<{
     salary: input.salary ?? null,
     tags: input.tags ?? [],
     demoCode: input.demoCode ?? null,
+    // Derived filter columns — kept in sync on updates too.
+    region: normalizeRegion(input.location),
+    country: normalizeCountry(input.location),
+    techs: extractTechs(input.title, input.tags ?? [], input.description),
+    companyKey: companyKey(input.company),
   };
 
   const existing = await prisma.job.findUnique({
