@@ -33,6 +33,12 @@ model Job {
   sourceUrl   String
   postedAt    DateTime
   fetchedAt   DateTime @default(now())
+  // Bumped whenever the same posting arrives again (any dedupe hit) — a signal
+  // the role is still open / being reposted. Null for jobs seen only once.
+  lastSeenAt  DateTime?
+  // True when the description couldn't be confirmed against the source (e.g. a
+  // failed fetch_job_description attempt) — treat its content with caution.
+  descriptionUnverified Boolean @default(false)
 
   // Derived at ingestion from the free-text fields (see lib/normalize.ts) so
   // the facet filters and universal search run on clean, indexed columns.
@@ -41,6 +47,10 @@ model Job {
   country    String? // canonical English name when the location names one
   techs      String[] // curated tech vocabulary detected in title/tags/description
   companyKey String? // normalized company identity ("Huzzle Ltd" → "huzzle")
+  // Soft-dedupe identity: normalized company + title. The same posting often
+  // arrives under different URLs (reposts per city/country); jobs sharing a
+  // fingerprint are surfaced as likely duplicates but never auto-merged.
+  fingerprint String?
 
   // Tenant scope. null = the owner's real jobs. A DemoSpace.code value means the
   // job belongs to that read-but-also-interactive demo space, kept fully
@@ -57,6 +67,7 @@ model Job {
   @@index([region])
   @@index([country])
   @@index([companyKey])
+  @@index([fingerprint])
 }
 
 model JobScore {

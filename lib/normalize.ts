@@ -200,6 +200,20 @@ export function companyKey(company: string): string {
     .trim();
 }
 
+/**
+ * Soft-dedupe identity: the same posting reposted under different URLs (per
+ * city/country) shares a fingerprint. Normalized company + normalized title —
+ * deliberately ignores location, so per-city reposts group together.
+ */
+export function jobFingerprint(title: string, company: string): string {
+  const t = title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${companyKey(company)}::${t}`;
+}
+
 // Work mode: HYBRID/ONSITE are detected only from the short, deliberate fields
 // (location, title, tags) — descriptions mention "hybrid" too casually to be a
 // reliable signal. Everything else stays REMOTE (all auto sources are remote

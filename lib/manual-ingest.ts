@@ -1,6 +1,6 @@
 import { Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { companyKey, detectWorkMode, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
+import { companyKey, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface ManualJobInput {
   platform: string;
@@ -53,6 +53,7 @@ export async function addManualJob(input: ManualJobInput): Promise<{
     country: normalizeCountry(input.location),
     techs: extractTechs(input.title, input.tags ?? [], input.description),
     companyKey: companyKey(input.company),
+    fingerprint: jobFingerprint(input.title, input.company),
     workMode:
       input.workMode ??
       detectWorkMode(input.location, input.title, input.tags ?? []),

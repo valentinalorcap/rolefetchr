@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sources, type JobSource } from "@/lib/sources";
 import { isIrrelevant } from "@/lib/relevance-filter";
-import { companyKey, detectWorkMode, extractTechs, normalizeCountry, normalizeRegion } from "@/lib/normalize";
+import { companyKey, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface IngestResult {
   source: string;
@@ -34,6 +34,7 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
         techs: extractTechs(j.title, j.tags, j.description),
         companyKey: companyKey(j.company),
         workMode: detectWorkMode(j.location, j.title, j.tags),
+        fingerprint: jobFingerprint(j.title, j.company),
       }));
 
     const existing = await prisma.job.findMany({
@@ -45,6 +46,14 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
     });
     const existingIds = new Set(existing.map((e) => e.externalId));
     const fresh = jobs.filter((j) => !existingIds.has(j.externalId));
+
+    // A job showing up again in its source's feed means it's still open.
+    if (existingIds.size > 0) {
+      await prisma.job.updateMany({
+        where: { source: src.source, externalId: { in: [...existingIds] } },
+        data: { lastSeenAt: new Date() },
+      });
+    }
 
     let jobsNew = 0;
     if (fresh.length > 0) {
