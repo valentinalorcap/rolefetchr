@@ -1,0 +1,180 @@
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { getCvText, getScoringConfig, updateScoringConfig } from "@/lib/cv-context";
+import { stripHtml } from "@/lib/format";
+import { err, json, text, type McpServer } from "@/lib/mcp/shared";
+
+export function registerScoringTools(server: McpServer) {
+  server.registerTool(
+    "get_unscored_jobs",
+    {
+      title: "Get unscored jobs",
+      description:
+        "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Score each one with set_job_score; read get_scoring_config + get_cv first so your scoring matches the rubric. This is the main loop for keeping matches up to date now that the app no longer scores with an LLM. Pass demoCode to score a demo space's jobs.",
+      inputSchema: {
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe("Max jobs to return (default 20)."),
+        descriptionChars: z
+          .number()
+          .int()
+          .min(200)
+          .max(8000)
+          .optional()
+          .describe("Cap on description length per job (default 4000)."),
+        demoCode: z
+          .string()
+          .optional()
+          .describe(
+            "Scope to a demo space (a DemoSpace.code). Omit for the owner's real jobs.",
+          ),
+      },
+    },
+    async ({ limit = 20, descriptionChars = 4000, demoCode = null }) => {
+      const where = { score: null, demoCode } as const;
+      const jobs = await prisma.job.findMany({
+        where,
+        orderBy: { postedAt: "desc" },
+        take: limit,
+      });
+      const remaining = await prisma.job.count({ where });
+      const payload = jobs.map((j) => ({
+        id: j.id,
+        title: j.title,
+        company: j.company,
+        source: j.sourceLabel ?? j.source,
+        location: j.location,
+        salary: j.salary,
+        tags: j.tags,
+        url: j.sourceUrl,
+        postedAt: j.postedAt.toISOString(),
+        workMode: j.workMode,
+        description: stripHtml(j.description).slice(0, descriptionChars),
+      }));
+      return json({ returned: payload.length, remainingUnscored: remaining, jobs: payload });
+    },
+  );
+
+  server.registerTool(
+    "set_job_score",
+    {
+      title: "Set job score",
+      description:
+        "Write (or overwrite) the CV-fit score for a job you scored yourself. Use the rubric from get_scoring_config: score 0-100, eligible=false (and score ≤15) when the role requires relocation / on-site / a visa or work-authorization outside Spain. This is how scores get into the app now.",
+      inputSchema: {
+        jobId: z.string(),
+        score: z.number().int().min(0).max(100),
+        eligible: z
+          .boolean()
+          .describe(
+            "False if the role requires something Valentina can't provide (relocation, on-site/hybrid, visa/residency/work-auth outside Spain). When false, score must be ≤15.",
+          ),
+        reasoning: z.string().describe("2-3 sentences grounding the score."),
+        matchedSkills: z.array(z.string()).optional(),
+        gaps: z.array(z.string()).optional(),
+        model: z
+          .string()
+          .optional()
+          .describe('Label for who scored it; defaults to "agent".'),
+      },
+    },
+    async ({ jobId, score, eligible, reasoning, matchedSkills = [], gaps = [], model = "agent" }) => {
+      const job = await prisma.job.findUnique({ where: { id: jobId }, select: { id: true, title: true } });
+      if (!job) return err(`No job with id ${jobId}.`);
+      await prisma.jobScore.upsert({
+        where: { jobId },
+        create: { jobId, score, eligible, reasoning, matchedSkills, gaps, model },
+        update: { score, eligible, reasoning, matchedSkills, gaps, model, evaluatedAt: new Date() },
+      });
+      return text(
+        `Scored "${job.title}" ${score}/100${eligible ? "" : " (not eligible)"}. [${jobId}]`,
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_scoring_config",
+    {
+      title: "Get scoring config",
+      description:
+        "Read the current scoring rubric and extra candidate context used to score jobs against the CV. Read this before editing so you can refine it rather than overwrite blindly.",
+      inputSchema: {},
+    },
+    async () => {
+      const cfg = await getScoringConfig();
+      return text(
+        `=== RUBRIC ===\n${cfg.rubric}\n\n` +
+          `=== CANDIDATE CONTEXT ===\n${cfg.candidateContext ?? "(none)"}\n\n` +
+          `(updated ${cfg.updatedAt.toISOString()})`,
+      );
+    },
+  );
+
+  server.registerTool(
+    "update_scoring_config",
+    {
+      title: "Update scoring config",
+      description:
+        "Update the scoring rubric, the extra candidate context (e.g. work-authorization, preferences, deal-breakers), and/or the CV text jobs are scored against. All fields are optional and partial — pass only what you want to change. Takes effect on the next scoring run; call rescore_all to re-score existing jobs. The rubric should keep instructing the model to return score/reasoning/matchedSkills/gaps.",
+      inputSchema: {
+        rubric: z
+          .string()
+          .optional()
+          .describe("Full replacement rubric text."),
+        candidateContext: z
+          .string()
+          .optional()
+          .describe("Extra context about the candidate to inform scoring."),
+        cv: z
+          .string()
+          .optional()
+          .describe("Full replacement CV text (what get_cv returns)."),
+      },
+    },
+    async ({ rubric, candidateContext, cv }) => {
+      if (rubric === undefined && candidateContext === undefined && cv === undefined) {
+        return err("Nothing to update.");
+      }
+      await updateScoringConfig({ rubric, candidateContext, cv });
+      return text(
+        `Scoring config updated${rubric ? " (rubric)" : ""}${candidateContext !== undefined ? " (candidateContext)" : ""}${cv !== undefined ? " (cv)" : ""}. New jobs use it immediately; call rescore_all to re-score existing ones.`,
+      );
+    },
+  );
+
+  server.registerTool(
+    "rescore_all",
+    {
+      title: "Clear all scores",
+      description:
+        "Clear every existing CV-fit score so all jobs become unscored. Use after changing the rubric or candidate context, then re-score them yourself via get_unscored_jobs → set_job_score (the app no longer scores automatically). Confirm intent.",
+      inputSchema: {
+        confirm: z
+          .boolean()
+          .describe("Must be true to actually clear scores."),
+      },
+    },
+    async ({ confirm }) => {
+      if (!confirm) return text("Not confirmed — no scores cleared.");
+      const { count } = await prisma.jobScore.deleteMany({});
+      return text(
+        `Cleared ${count} scores. All jobs are now unscored — re-score them via get_unscored_jobs → set_job_score.`,
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_cv",
+    {
+      title: "Get CV",
+      description:
+        "Return the CV text the scoring is based on. Use it to align the candidate context / rubric edits with what the app actually scores against.",
+      inputSchema: {},
+    },
+    async () => text(await getCvText()),
+  );
+}

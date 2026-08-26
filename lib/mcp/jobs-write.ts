@@ -1,0 +1,128 @@
+import { z } from "zod";
+import { ActionStatus, Prisma, Source, WorkMode } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { addManualJob } from "@/lib/manual-ingest";
+import { DESCRIPTION_GUIDANCE, err, text, type McpServer } from "@/lib/mcp/shared";
+
+export function registerJobWriteTools(server: McpServer) {
+  server.registerTool(
+    "add_job",
+    {
+      title: "Add a job",
+      description:
+        "Add a job from a site rolefetchr can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). Deduped by URL. The app does NOT score — the job is added unscored; score it yourself with set_job_score (read get_scoring_config + get_cv for the rubric first). Returns the job id.",
+      inputSchema: {
+        platform: z
+          .string()
+          .describe('The site the job is from, e.g. "LinkedIn", "Jobgether".'),
+        url: z.string().url().describe("The job posting URL (used to dedupe)."),
+        title: z.string().describe("Job title."),
+        company: z.string().describe("Hiring company."),
+        description: z.string().describe(DESCRIPTION_GUIDANCE),
+        location: z.string().optional(),
+        salary: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        postedAt: z
+          .string()
+          .optional()
+          .describe("ISO date the job was posted; defaults to now."),
+        demoCode: z
+          .string()
+          .optional()
+          .describe(
+            "Add this job to a demo space (a DemoSpace.code) instead of the owner's real data. Demo jobs are fully isolated. Omit for normal jobs.",
+          ),
+        source: z
+          .nativeEnum(Source)
+          .optional()
+          .describe(
+            "Catalogued source (defaults to MANUAL). For demo data, vary it (REMOTEOK, JSEARCH, EMAIL, …) so the Sources sidebar looks realistic.",
+          ),
+        workMode: z
+          .nativeEnum(WorkMode)
+          .optional()
+          .describe(
+            "How the role is worked: REMOTE (default), HYBRID, or ONSITE. Set it explicitly when the posting says so; HYBRID/ONSITE jobs get a distinct badge in the UI. When omitted it's detected from location/title/tags.",
+          ),
+      },
+    },
+    async (input) => {
+      const { jobId, isNew } = await addManualJob(input);
+      const verb = isNew ? "Added" : "Updated";
+      return text(
+        `${verb} "${input.title}" at ${input.company} (${input.platform}). [${jobId}]\n` +
+          `Unscored — call set_job_score with this id to score it. View: /jobs/${jobId}`,
+      );
+    },
+  );
+
+  server.registerTool(
+    "update_job",
+    {
+      title: "Update a job",
+      description:
+        "Edit an existing job's fields by id (e.g. fix a title, description, location, or source) without recreating it. Only the fields you pass are changed. Does not change the score — re-run set_job_score if the change affects the fit.",
+      inputSchema: {
+        id: z.string().describe("The job id to update."),
+        title: z.string().optional(),
+        company: z.string().optional(),
+        description: z.string().optional().describe(DESCRIPTION_GUIDANCE),
+        location: z.string().nullable().optional(),
+        salary: z.string().nullable().optional(),
+        tags: z.array(z.string()).optional(),
+        platform: z
+          .string()
+          .optional()
+          .describe("The displayed platform/source label (sourceLabel)."),
+        source: z
+          .nativeEnum(Source)
+          .optional()
+          .describe("The catalogued source (affects the Sources sidebar)."),
+        url: z.string().url().optional().describe("The posting URL (sourceUrl)."),
+        postedAt: z.string().optional().describe("ISO date the job was posted."),
+      },
+    },
+    async ({ id, platform, url, postedAt, ...rest }) => {
+      const job = await prisma.job.findUnique({ where: { id }, select: { id: true } });
+      if (!job) return err(`No job with id ${id}.`);
+      const data: Prisma.JobUpdateInput = {};
+      for (const [k, v] of Object.entries(rest)) {
+        if (v !== undefined) (data as Record<string, unknown>)[k] = v;
+      }
+      if (platform !== undefined) data.sourceLabel = platform;
+      if (url !== undefined) data.sourceUrl = url;
+      if (postedAt !== undefined) data.postedAt = new Date(postedAt);
+      if (Object.keys(data).length === 0) return err("Nothing to update.");
+      await prisma.job.update({ where: { id }, data });
+      return text(`Updated ${Object.keys(data).join(", ")} on job ${id}.`);
+    },
+  );
+
+  server.registerTool(
+    "set_job_action",
+    {
+      title: "Set job action",
+      description:
+        "Manage the pipeline for a job: mark it SAVED / APPLIED / NOT_INTERESTED / INTERVIEW / REJECTED with an optional note. NOT_INTERESTED archives the job (it moves to the Archived tab and is hidden from the main views). Use status CLEAR to remove any action.",
+      inputSchema: {
+        jobId: z.string(),
+        status: z
+          .enum(["SAVED", "APPLIED", "NOT_INTERESTED", "INTERVIEW", "REJECTED", "CLEAR"])
+          .describe("CLEAR removes the current action."),
+        notes: z.string().optional(),
+      },
+    },
+    async ({ jobId, status, notes }) => {
+      if (status === "CLEAR") {
+        await prisma.jobAction.deleteMany({ where: { jobId } });
+        return text(`Cleared action on ${jobId}.`);
+      }
+      await prisma.jobAction.upsert({
+        where: { jobId },
+        create: { jobId, status: status as ActionStatus, notes: notes ?? null },
+        update: { status: status as ActionStatus, ...(notes !== undefined ? { notes } : {}) },
+      });
+      return text(`Marked ${jobId} as ${status}${notes ? ` (note saved)` : ""}.`);
+    },
+  );
+}
