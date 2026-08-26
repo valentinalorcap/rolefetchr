@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { decodeEntities, extractJobPostingDescription } from "@/lib/description-fetch";
+import {
+  decodeEntities,
+  extractJobPostingDescription,
+  extractLinkedInGuestDescription,
+} from "@/lib/description-fetch";
 
 const LONG_TEXT =
   "We are hiring a Full Stack Engineer to build our platform. ".repeat(10);
@@ -66,6 +70,22 @@ describe("extractJobPostingDescription — content fallback", () => {
   it("returns null for a page with no real content (auth wall)", () => {
     expect(
       extractJobPostingDescription(page("<main><p>Sign in to continue</p></main>")),
+    ).toBeNull();
+  });
+});
+
+describe("extractLinkedInGuestDescription", () => {
+  it("extracts the posting body from the jobs-guest fragment", () => {
+    const html = `<section><div class="description"><div class="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden"><p>${LONG_TEXT}</p><ul><li>TypeScript</li></ul></div><button>Show more</button></div></section>`;
+    const out = extractLinkedInGuestDescription(html);
+    expect(out).toContain(LONG_TEXT.trim());
+    expect(out).toContain("<li>TypeScript</li>");
+  });
+
+  it("returns null when the container is missing or trivially short", () => {
+    expect(extractLinkedInGuestDescription("<div>nothing here</div>")).toBeNull();
+    expect(
+      extractLinkedInGuestDescription('<div class="show-more-less-html__markup">Too short.</div>'),
     ).toBeNull();
   });
 });

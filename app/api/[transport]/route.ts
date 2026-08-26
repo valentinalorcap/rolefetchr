@@ -3,6 +3,7 @@ import { registerJobWriteTools } from "@/lib/mcp/jobs-write";
 import { registerJobReadTools } from "@/lib/mcp/jobs-read";
 import { registerScoringTools } from "@/lib/mcp/scoring";
 import { registerEmailTools } from "@/lib/mcp/emails";
+import { registerMuteTools } from "@/lib/mcp/mutes";
 import { registerDemoTools } from "@/lib/mcp/demo";
 
 // Prisma needs the Node runtime.
@@ -16,6 +17,7 @@ const mcpHandler = createMcpHandler(
     registerJobReadTools(server);
     registerScoringTools(server);
     registerEmailTools(server);
+    registerMuteTools(server);
     registerDemoTools(server);
   },
   {},

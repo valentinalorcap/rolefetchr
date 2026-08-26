@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sources, type JobSource } from "@/lib/sources";
 import { isIrrelevant } from "@/lib/relevance-filter";
+import { getMutedKeys } from "@/lib/muted-sources";
 import { companyKey, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface IngestResult {
@@ -21,12 +22,14 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
 
   try {
     const fetched = await src.fetchJobs();
-    // Free relevance gate: drop clearly non-software roles before storing, so
-    // they don't clutter the app or cost the external scoring agent tokens.
-    // Then derive the normalized filter columns (region/country/techs/company
-    // identity) — the facet filters and universal search run on these.
+    const muted = await getMutedKeys();
+    // Free relevance gate: drop clearly non-software roles and muted repost
+    // bots before storing, so they don't clutter the app or cost the external
+    // scoring agent tokens. Then derive the normalized filter columns
+    // (region/country/techs/company identity) — the facet filters and
+    // universal search run on these.
     const jobs = fetched
-      .filter((j) => !isIrrelevant(j.title))
+      .filter((j) => !isIrrelevant(j.title) && !muted.has(companyKey(j.company)))
       .map((j) => ({
         ...j,
         region: normalizeRegion(j.location),

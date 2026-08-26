@@ -161,6 +161,15 @@ enum Source {
   GETONBOARD
 }
 
+// Publishers muted from ingestion: accounts that aren't employers but bots
+// reposting the same ad daily under fresh URLs without naming the real client.
+// Matched on the normalized company identity (lib/normalize companyKey).
+model MutedSource {
+  key       String   @id // companyKey-normalized name
+  label     String // the name as it was muted
+  createdAt DateTime @default(now())
+}
+
 enum WorkMode {
   REMOTE
   HYBRID

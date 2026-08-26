@@ -7,6 +7,7 @@ import { isLeadDescription, isLowInformation, stripHtml } from "@/lib/format";
 import { DESCRIPTION_GUIDANCE, err, text, type McpServer } from "@/lib/mcp/shared";
 
 function addResultLines(title: string, r: AddJobResult): string[] {
+  if (r.muted) return [`Skipped "${title}" — the publisher is muted (repost bot). See list_muted; use unmute_source to allow it.`];
   const lines = [`${r.isNew ? "Added" : "Updated"} "${title}" — ${describeAddResult(r)}. [${r.jobId}]`];
   if (r.duplicates.length) {
     lines.push(
@@ -110,11 +111,13 @@ export function registerJobWriteTools(server: McpServer) {
       const lines: string[] = [];
       let created = 0;
       let updated = 0;
+      let mutedCount = 0;
       let failed = 0;
       for (const job of jobs) {
         try {
           const result = await addManualJob({ ...job, demoCode });
-          if (result.isNew) created++;
+          if (result.muted) mutedCount++;
+          else if (result.isNew) created++;
           else updated++;
           lines.push(...addResultLines(job.title, result));
         } catch (e) {
@@ -123,7 +126,7 @@ export function registerJobWriteTools(server: McpServer) {
         }
       }
       lines.unshift(
-        `${jobs.length} jobs → ${created} created, ${updated} updated${failed ? `, ${failed} FAILED` : ""}. New/re-opened ones are unscored — score them via get_unscored_jobs → set_job_scores.`,
+        `${jobs.length} jobs → ${created} created, ${updated} updated${mutedCount ? `, ${mutedCount} skipped (muted)` : ""}${failed ? `, ${failed} FAILED` : ""}. New/re-opened ones are unscored — score them via get_unscored_jobs → set_job_scores.`,
       );
       return text(lines.join("\n"));
     },
@@ -176,7 +179,7 @@ export function registerJobWriteTools(server: McpServer) {
     {
       title: "Fetch a job's description",
       description:
-        "Open a job's source URL server-side, extract the posting's description, store it on the job, and return it — one step, so a posting can't be read without being saved. Prefers the page's schema.org JobPosting data (verified); falls back to the page content (stored as unverified). If a real description lands where an empty/placeholder one was, the stale score is cleared for re-scoring. Best-effort: pages behind auth walls (e.g. LinkedIn) may fail — the job is then flagged descriptionUnverified and you should paste the description via add_job/update_job instead.",
+        "Open a job's source URL server-side, extract the posting's description, store it on the job, and return it — one step, so a posting can't be read without being saved. LinkedIn postings use LinkedIn's public guest endpoint (verified); other pages use their schema.org JobPosting data (verified) or the page content (stored as unverified). If a real description lands where an empty/placeholder one was, the stale score is cleared for re-scoring. Two failure modes: BLOCKED means the source refused the server's request (999/403/captcha/logged-out interstitial) — nothing is stored; you have network access the server doesn't, so fetch the posting yourself and write the description with update_job. FAILED means a real error (dead URL, timeout, nothing extractable) — jobs without confirmed content get flagged descriptionUnverified.",
       inputSchema: {
         jobId: z.string(),
         descriptionChars: z
@@ -203,6 +206,14 @@ export function registerJobWriteTools(server: McpServer) {
 
       const storedIsLead = !job.description.trim() || isLeadDescription(job.description);
       const result = await fetchJobDescription(job.sourceUrl);
+      if (!result.ok && result.blocked) {
+        // The source refused the server's request — the agent's own network can
+        // likely read it. Store nothing, flag nothing.
+        return err(
+          `BLOCKED — the source refused the server's request for "${job.title}" (${job.sourceUrl}): ${result.error}\n` +
+            `Nothing was stored. Fetch the posting from your own network and write the description with update_job (id: ${jobId}).`,
+        );
+      }
       if (!result.ok) {
         // Only flag when there's no confirmed content — a failed re-fetch must
         // not downgrade a description that was already good.
@@ -213,16 +224,16 @@ export function registerJobWriteTools(server: McpServer) {
           });
         }
         return err(
-          `Could not fetch the description for "${job.title}" (${job.sourceUrl}): ${result.error}\n` +
+          `FAILED — could not fetch the description for "${job.title}" (${job.sourceUrl}): ${result.error}\n` +
             `${storedIsLead ? "Flagged descriptionUnverified. " : "The stored description is untouched. "}` +
             `Open the posting yourself and pass the description via add_job or update_job.`,
         );
       }
 
-      // Trust order: verified (JSON-LD / agent text) beats unverified page
-      // content regardless of length; length only breaks ties within a level;
-      // low-information junk never wins over real content.
-      const incomingVerified = result.via === "json-ld";
+      // Trust order: verified (LinkedIn guest endpoint / JSON-LD / agent text)
+      // beats unverified page content regardless of length; length only breaks
+      // ties within a level; low-information junk never wins over real content.
+      const incomingVerified = result.via !== "content";
       let improves: boolean;
       if (isLowInformation(result.description) && !storedIsLead) {
         improves = false;

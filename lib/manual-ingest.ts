@@ -29,6 +29,8 @@ export interface ManualJobInput {
 export interface AddJobResult {
   jobId: string;
   isNew: boolean;
+  // True when the company is on the muted list (repost bots) — nothing stored.
+  muted: boolean;
   // Dedupe-hit reporting: which fields the incoming data overwrote, and which
   // it was NOT allowed to overwrite (the stored value was better).
   changed: string[];
@@ -154,6 +156,23 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
     : input.url;
   const demoCode = input.demoCode ?? null;
 
+  // Muted publishers (repost bots) never enter, not even as an update.
+  const mutedRow = await prisma.mutedSource.findUnique({
+    where: { key: companyKey(input.company) },
+    select: { key: true },
+  });
+  if (mutedRow) {
+    return {
+      jobId: "",
+      isNew: false,
+      muted: true,
+      changed: [],
+      kept: [],
+      scoreCleared: false,
+      duplicates: [],
+    };
+  }
+
   const existing = await prisma.job.findUnique({
     where: { source_externalId: { source, externalId } },
   });
@@ -197,6 +216,7 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
     return {
       jobId: job.id,
       isNew: true,
+      muted: false,
       changed: [],
       kept: [],
       scoreCleared: false,
@@ -234,6 +254,7 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
   return {
     jobId: existing.id,
     isNew: false,
+    muted: false,
     changed,
     kept,
     scoreCleared,
@@ -243,6 +264,7 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
 
 /** One-line human summary of an AddJobResult for tool responses. */
 export function describeAddResult(r: AddJobResult): string {
+  if (r.muted) return "skipped — muted publisher (see list_muted; unmute_source to allow)";
   if (r.isNew) return "created";
   const parts: string[] = [];
   parts.push(r.changed.length ? `changed: ${r.changed.join(", ")}` : "no field changes");

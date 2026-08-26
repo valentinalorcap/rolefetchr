@@ -1,7 +1,9 @@
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCvText, getScoringConfig, updateScoringConfig } from "@/lib/cv-context";
 import { stripHtml } from "@/lib/format";
+import { getMutedKeys } from "@/lib/muted-sources";
 import { err, json, text, type McpServer } from "@/lib/mcp/shared";
 
 export function registerScoringTools(server: McpServer) {
@@ -10,7 +12,7 @@ export function registerScoringTools(server: McpServer) {
     {
       title: "Get unscored jobs",
       description:
-        "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Each job carries its dedupe fingerprint; jobs sharing one in the same batch are the same posting reposted (score once, reuse). When scoredDuplicate is set, the same posting was already scored under another URL — reuse that score (adjusting eligibility if this copy's location differs) instead of re-reading the description. Score with set_job_scores (batch); read get_scoring_config + get_cv first. Pass demoCode to score a demo space's jobs.",
+        "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Each job carries its dedupe fingerprint; jobs sharing one in the same batch are the same posting reposted (score once, reuse). When scoredDuplicate is set, the same posting was already scored under another URL — reuse that score, but RE-EVALUATE eligibility whenever this copy's location OR workMode differs from the duplicate's (the same ad can be (Remote) in one country and (Hybrid) elsewhere, with opposite eligibility). Score with set_job_scores (batch); read get_scoring_config + get_cv first. Pass demoCode to score a demo space's jobs.",
       inputSchema: {
         limit: z
           .number()
@@ -35,7 +37,13 @@ export function registerScoringTools(server: McpServer) {
       },
     },
     async ({ limit = 20, descriptionChars = 4000, demoCode = null }) => {
-      const where = { score: null, demoCode } as const;
+      // Muted publishers (repost bots) are hidden from the scoring loop.
+      const muted = await getMutedKeys();
+      const where: Prisma.JobWhereInput = {
+        score: null,
+        demoCode,
+        ...(muted.size ? { NOT: { companyKey: { in: [...muted] } } } : {}),
+      };
       const jobs = await prisma.job.findMany({
         where,
         orderBy: { postedAt: "desc" },
@@ -54,6 +62,7 @@ export function registerScoringTools(server: McpServer) {
               id: true,
               fingerprint: true,
               location: true,
+              workMode: true,
               score: { select: { score: true, eligible: true } },
             },
           })
@@ -80,6 +89,7 @@ export function registerScoringTools(server: McpServer) {
             ? {
                 jobId: sibling.id,
                 location: sibling.location,
+                workMode: sibling.workMode,
                 score: sibling.score?.score,
                 eligible: sibling.score?.eligible,
               }
