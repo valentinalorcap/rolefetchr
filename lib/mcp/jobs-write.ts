@@ -2,6 +2,8 @@ import { z } from "zod";
 import { ActionStatus, Prisma, Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { addManualJob, describeAddResult, type AddJobResult } from "@/lib/manual-ingest";
+import { fetchJobDescription } from "@/lib/description-fetch";
+import { isLeadDescription, stripHtml } from "@/lib/format";
 import { DESCRIPTION_GUIDANCE, err, text, type McpServer } from "@/lib/mcp/shared";
 
 function addResultLines(title: string, r: AddJobResult): string[] {
@@ -166,6 +168,73 @@ export function registerJobWriteTools(server: McpServer) {
       if (Object.keys(data).length === 0) return err("Nothing to update.");
       await prisma.job.update({ where: { id }, data });
       return text(`Updated ${Object.keys(data).join(", ")} on job ${id}.`);
+    },
+  );
+
+  server.registerTool(
+    "fetch_job_description",
+    {
+      title: "Fetch a job's description",
+      description:
+        "Open a job's source URL server-side, extract the posting's description, store it on the job, and return it — one step, so a posting can't be read without being saved. Prefers the page's schema.org JobPosting data (verified); falls back to the page content (stored as unverified). If a real description lands where an empty/placeholder one was, the stale score is cleared for re-scoring. Best-effort: pages behind auth walls (e.g. LinkedIn) may fail — the job is then flagged descriptionUnverified and you should paste the description via add_job/update_job instead.",
+      inputSchema: {
+        jobId: z.string(),
+        descriptionChars: z
+          .number()
+          .int()
+          .min(200)
+          .max(8000)
+          .optional()
+          .describe("Cap on the returned plain-text description (default 4000)."),
+      },
+    },
+    async ({ jobId, descriptionChars = 4000 }) => {
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        select: { id: true, title: true, sourceUrl: true, description: true },
+      });
+      if (!job) return err(`No job with id ${jobId}.`);
+
+      const result = await fetchJobDescription(job.sourceUrl);
+      if (!result.ok) {
+        await prisma.job.update({
+          where: { id: jobId },
+          data: { descriptionUnverified: true },
+        });
+        return err(
+          `Could not fetch the description for "${job.title}" (${job.sourceUrl}): ${result.error}\n` +
+            `Flagged descriptionUnverified. Open the posting yourself and pass the description via add_job or update_job.`,
+        );
+      }
+
+      // Same quality guard as add_job: only improve what's stored.
+      const storedIsLead = !job.description.trim() || isLeadDescription(job.description);
+      const improves = storedIsLead || result.description.length > job.description.length;
+      const scoreCleared = storedIsLead && improves && !isLeadDescription(result.description);
+      if (improves) {
+        await prisma.job.update({
+          where: { id: jobId },
+          data: {
+            description: result.description,
+            descriptionUnverified: result.via === "content",
+          },
+        });
+        if (scoreCleared) await prisma.jobScore.deleteMany({ where: { jobId } });
+      }
+
+      const stored = improves ? result.description : job.description;
+      return text(
+        [
+          improves
+            ? `Fetched and stored the description for "${job.title}" (via ${result.via}${result.via === "content" ? ", flagged unverified" : ""}).`
+            : `Fetched "${job.title}" but the stored description is better — kept it.`,
+          scoreCleared ? "Stale score cleared — re-score this job." : null,
+          "",
+          stripHtml(stored).slice(0, descriptionChars),
+        ]
+          .filter((l): l is string => l !== null)
+          .join("\n"),
+      );
     },
   );
 
