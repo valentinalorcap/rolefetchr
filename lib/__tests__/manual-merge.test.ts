@@ -11,6 +11,7 @@ const existing = (over: Partial<JobContentFields> = {}): JobContentFields => ({
   title: "Full Stack Engineer",
   company: "Acme",
   description: REAL_DESCRIPTION,
+  descriptionUnverified: false,
   location: "Remote (Europe)",
   salary: null,
   tags: ["react"],
@@ -60,6 +61,24 @@ describe("mergeJobFields — description guard", () => {
     expect(out.merged.description).toBe(REAL_DESCRIPTION);
     expect(out.changed).not.toContain("description");
     expect(out.kept).toHaveLength(0);
+  });
+
+  it("long low-information scraper junk never beats a real description", () => {
+    const junk = "<p>" + "reputed company great opportunity ".repeat(60) + "</p>";
+    const out = mergeJobFields(existing(), { ...input, description: junk });
+    expect(out.merged.description).toBe(REAL_DESCRIPTION);
+    expect(out.kept).toContain("description");
+  });
+
+  it("verified agent text replaces an unverified scraped one even if shorter", () => {
+    const scraped = REAL_DESCRIPTION + "<p>Page chrome and unrelated links…</p>";
+    const out = mergeJobFields(
+      existing({ description: scraped, descriptionUnverified: true }),
+      { ...input, description: REAL_DESCRIPTION },
+    );
+    expect(out.merged.description).toBe(REAL_DESCRIPTION);
+    expect(out.merged.descriptionUnverified).toBe(false);
+    expect(out.changed).toContain("description");
   });
 });
 

@@ -10,7 +10,7 @@ export function registerScoringTools(server: McpServer) {
     {
       title: "Get unscored jobs",
       description:
-        "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Score each one with set_job_score; read get_scoring_config + get_cv first so your scoring matches the rubric. This is the main loop for keeping matches up to date now that the app no longer scores with an LLM. Pass demoCode to score a demo space's jobs.",
+        "List jobs that have no CV-fit score yet, with the full content needed to score them (title, company, location, salary, tags, description, url). Returns JSON. Freshest first. Each job carries its dedupe fingerprint; jobs sharing one in the same batch are the same posting reposted (score once, reuse). When scoredDuplicate is set, the same posting was already scored under another URL — reuse that score (adjusting eligibility if this copy's location differs) instead of re-reading the description. Score with set_job_scores (batch); read get_scoring_config + get_cv first. Pass demoCode to score a demo space's jobs.",
       inputSchema: {
         limit: z
           .number()
@@ -42,19 +42,51 @@ export function registerScoringTools(server: McpServer) {
         take: limit,
       });
       const remaining = await prisma.job.count({ where });
-      const payload = jobs.map((j) => ({
-        id: j.id,
-        title: j.title,
-        company: j.company,
-        source: j.sourceLabel ?? j.source,
-        location: j.location,
-        salary: j.salary,
-        tags: j.tags,
-        url: j.sourceUrl,
-        postedAt: j.postedAt.toISOString(),
-        workMode: j.workMode,
-        description: stripHtml(j.description).slice(0, descriptionChars),
-      }));
+
+      // The same posting often exists under other URLs (per-city reposts). If a
+      // fingerprint sibling is already scored, hand the agent that score so it
+      // can reuse it instead of scoring the same ad again.
+      const fingerprints = [...new Set(jobs.map((j) => j.fingerprint).filter((f): f is string => !!f))];
+      const scoredSiblings = fingerprints.length
+        ? await prisma.job.findMany({
+            where: { fingerprint: { in: fingerprints }, demoCode, score: { isNot: null } },
+            select: {
+              id: true,
+              fingerprint: true,
+              location: true,
+              score: { select: { score: true, eligible: true } },
+            },
+          })
+        : [];
+      const siblingByFingerprint = new Map(
+        scoredSiblings.map((s) => [s.fingerprint as string, s]),
+      );
+
+      const payload = jobs.map((j) => {
+        const sibling = j.fingerprint ? siblingByFingerprint.get(j.fingerprint) : undefined;
+        return {
+          id: j.id,
+          title: j.title,
+          company: j.company,
+          source: j.sourceLabel ?? j.source,
+          location: j.location,
+          salary: j.salary,
+          tags: j.tags,
+          url: j.sourceUrl,
+          postedAt: j.postedAt.toISOString(),
+          workMode: j.workMode,
+          fingerprint: j.fingerprint,
+          scoredDuplicate: sibling
+            ? {
+                jobId: sibling.id,
+                location: sibling.location,
+                score: sibling.score?.score,
+                eligible: sibling.score?.eligible,
+              }
+            : null,
+          description: stripHtml(j.description).slice(0, descriptionChars),
+        };
+      });
       return json({ returned: payload.length, remainingUnscored: remaining, jobs: payload });
     },
   );

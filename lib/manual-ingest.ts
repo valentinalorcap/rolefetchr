@@ -1,6 +1,6 @@
 import { Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isLeadDescription } from "@/lib/format";
+import { isLeadDescription, isLowInformation } from "@/lib/format";
 import { companyKey, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface ManualJobInput {
@@ -47,6 +47,10 @@ export interface JobContentFields {
   title: string;
   company: string;
   description: string;
+  // True when the stored description came from an unverified extraction (page
+  // content, not JSON-LD/agent) — a verified incoming one may replace it even
+  // if shorter.
+  descriptionUnverified: boolean;
   location: string | null;
   salary: string | null;
   tags: string[];
@@ -62,8 +66,10 @@ export interface MergeOutcome {
 
 /**
  * Pure dedupe-merge: decide, field by field, whether incoming data may
- * overwrite what's stored. Descriptions only improve (a placeholder never
- * replaces a real one); salary/location only fill blanks. When a real
+ * overwrite what's stored. Description trust order: agent-provided text is
+ * verified, so it replaces an unverified (page-scraped) one regardless of
+ * length; within the same trust level, longer wins; low-information scraper
+ * junk never replaces anything. Salary/location only fill blanks. When a real
  * description replaces an empty/placeholder one, the score must be cleared —
  * it was assigned without the actual posting in front of it.
  */
@@ -80,6 +86,7 @@ export function mergeJobFields(
     title: input.title,
     company: input.company,
     description: existing.description,
+    descriptionUnverified: existing.descriptionUnverified,
     location: existing.location,
     salary: existing.salary,
     tags: input.tags ?? existing.tags,
@@ -91,8 +98,14 @@ export function mergeJobFields(
 
   const storedIsLead = isBlank(existing.description) || isLeadDescription(existing.description);
   if (input.description !== undefined && input.description !== existing.description) {
-    if (storedIsLead || input.description.length > existing.description.length) {
+    const accept = isLowInformation(input.description)
+      ? false // scraper junk (long but content-free) never wins
+      : storedIsLead ||
+        existing.descriptionUnverified || // agent text is verified: beats scraped content
+        input.description.length > existing.description.length;
+    if (accept) {
       merged.description = input.description;
+      merged.descriptionUnverified = false;
       changed.push("description");
     } else {
       kept.push("description");
@@ -201,6 +214,7 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
       title: merged.title,
       company: merged.company,
       description: merged.description,
+      descriptionUnverified: merged.descriptionUnverified,
       location: merged.location,
       salary: merged.salary,
       tags: merged.tags,

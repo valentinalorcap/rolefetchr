@@ -3,7 +3,7 @@ import { ActionStatus, Prisma, Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { addManualJob, describeAddResult, type AddJobResult } from "@/lib/manual-ingest";
 import { fetchJobDescription } from "@/lib/description-fetch";
-import { isLeadDescription, stripHtml } from "@/lib/format";
+import { isLeadDescription, isLowInformation, stripHtml } from "@/lib/format";
 import { DESCRIPTION_GUIDANCE, err, text, type McpServer } from "@/lib/mcp/shared";
 
 function addResultLines(title: string, r: AddJobResult): string[] {
@@ -191,32 +191,56 @@ export function registerJobWriteTools(server: McpServer) {
     async ({ jobId, descriptionChars = 4000 }) => {
       const job = await prisma.job.findUnique({
         where: { id: jobId },
-        select: { id: true, title: true, sourceUrl: true, description: true },
+        select: {
+          id: true,
+          title: true,
+          sourceUrl: true,
+          description: true,
+          descriptionUnverified: true,
+        },
       });
       if (!job) return err(`No job with id ${jobId}.`);
 
+      const storedIsLead = !job.description.trim() || isLeadDescription(job.description);
       const result = await fetchJobDescription(job.sourceUrl);
       if (!result.ok) {
-        await prisma.job.update({
-          where: { id: jobId },
-          data: { descriptionUnverified: true },
-        });
+        // Only flag when there's no confirmed content — a failed re-fetch must
+        // not downgrade a description that was already good.
+        if (storedIsLead) {
+          await prisma.job.update({
+            where: { id: jobId },
+            data: { descriptionUnverified: true },
+          });
+        }
         return err(
           `Could not fetch the description for "${job.title}" (${job.sourceUrl}): ${result.error}\n` +
-            `Flagged descriptionUnverified. Open the posting yourself and pass the description via add_job or update_job.`,
+            `${storedIsLead ? "Flagged descriptionUnverified. " : "The stored description is untouched. "}` +
+            `Open the posting yourself and pass the description via add_job or update_job.`,
         );
       }
 
-      // Same quality guard as add_job: only improve what's stored.
-      const storedIsLead = !job.description.trim() || isLeadDescription(job.description);
-      const improves = storedIsLead || result.description.length > job.description.length;
+      // Trust order: verified (JSON-LD / agent text) beats unverified page
+      // content regardless of length; length only breaks ties within a level;
+      // low-information junk never wins over real content.
+      const incomingVerified = result.via === "json-ld";
+      let improves: boolean;
+      if (isLowInformation(result.description) && !storedIsLead) {
+        improves = false;
+      } else if (storedIsLead) {
+        improves = true;
+      } else if (incomingVerified) {
+        improves = job.descriptionUnverified || result.description.length > job.description.length;
+      } else {
+        // Unverified content only replaces unverified content, and only if longer.
+        improves = job.descriptionUnverified && result.description.length > job.description.length;
+      }
       const scoreCleared = storedIsLead && improves && !isLeadDescription(result.description);
       if (improves) {
         await prisma.job.update({
           where: { id: jobId },
           data: {
             description: result.description,
-            descriptionUnverified: result.via === "content",
+            descriptionUnverified: !incomingVerified,
           },
         });
         if (scoreCleared) await prisma.jobScore.deleteMany({ where: { jobId } });
