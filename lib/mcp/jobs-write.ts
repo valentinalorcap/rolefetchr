@@ -1,8 +1,20 @@
 import { z } from "zod";
 import { ActionStatus, Prisma, Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { addManualJob } from "@/lib/manual-ingest";
+import { addManualJob, describeAddResult, type AddJobResult } from "@/lib/manual-ingest";
 import { DESCRIPTION_GUIDANCE, err, text, type McpServer } from "@/lib/mcp/shared";
+
+function addResultLines(title: string, r: AddJobResult): string[] {
+  const lines = [`${r.isNew ? "Added" : "Updated"} "${title}" — ${describeAddResult(r)}. [${r.jobId}]`];
+  if (r.duplicates.length) {
+    lines.push(
+      `  ⚠ Likely same posting under other URLs: ${r.duplicates
+        .map((d) => `[${d.id}] ${d.location ?? "?"} ${d.url}`)
+        .join(" · ")}`,
+    );
+  }
+  return lines;
+}
 
 export function registerJobWriteTools(server: McpServer) {
   server.registerTool(
@@ -10,7 +22,7 @@ export function registerJobWriteTools(server: McpServer) {
     {
       title: "Add a job",
       description:
-        "Add a job from a site rolefetchr can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). Deduped by URL. The app does NOT score — the job is added unscored; score it yourself with set_job_score (read get_scoring_config + get_cv for the rubric first). Returns the job id.",
+        "Add a job from a site rolefetchr can't scrape (LinkedIn, Welcome to the Jungle, Jobgether, etc.). Deduped by URL; on a dedupe hit incoming data can only improve the record (a placeholder never overwrites a real description; salary/location only fill blanks) and the response details what changed. If a real description replaces an empty one, the stale score is cleared for re-scoring. Also reports other jobs that look like the same posting under a different URL. The app does NOT score — score with set_job_score (read get_scoring_config + get_cv first).",
       inputSchema: {
         platform: z
           .string()
@@ -18,7 +30,12 @@ export function registerJobWriteTools(server: McpServer) {
         url: z.string().url().describe("The job posting URL (used to dedupe)."),
         title: z.string().describe("Job title."),
         company: z.string().describe("Hiring company."),
-        description: z.string().describe(DESCRIPTION_GUIDANCE),
+        description: z
+          .string()
+          .optional()
+          .describe(
+            `Optional — omit for a title+link lead (the job shows as a Lead until a real description arrives; use fetch_job_description or pass it later). ${DESCRIPTION_GUIDANCE}`,
+          ),
         location: z.string().optional(),
         salary: z.string().optional(),
         tags: z.array(z.string()).optional(),
@@ -47,12 +64,12 @@ export function registerJobWriteTools(server: McpServer) {
       },
     },
     async (input) => {
-      const { jobId, isNew } = await addManualJob(input);
-      const verb = isNew ? "Added" : "Updated";
-      return text(
-        `${verb} "${input.title}" at ${input.company} (${input.platform}). [${jobId}]\n` +
-          `Unscored — call set_job_score with this id to score it. View: /jobs/${jobId}`,
-      );
+      const result = await addManualJob(input);
+      const lines = addResultLines(input.title, result);
+      if (result.isNew || result.scoreCleared) {
+        lines.push(`Unscored — call set_job_score with this id. View: /jobs/${result.jobId}`);
+      }
+      return text(lines.join("\n"));
     },
   );
 
