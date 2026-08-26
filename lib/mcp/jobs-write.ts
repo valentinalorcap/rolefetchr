@@ -74,6 +74,60 @@ export function registerJobWriteTools(server: McpServer) {
   );
 
   server.registerTool(
+    "add_jobs",
+    {
+      title: "Add jobs in batch",
+      description:
+        "Add several jobs in one call — same per-job fields and dedupe rules as add_job (quality-guarded overwrites, lastSeenAt bump, score cleared when a real description replaces a placeholder, duplicate reporting). Use this instead of many add_job calls when processing an email or a scrape. One invalid job doesn't sink the rest.",
+      inputSchema: {
+        jobs: z
+          .array(
+            z.object({
+              platform: z.string(),
+              url: z.string().url(),
+              title: z.string(),
+              company: z.string(),
+              description: z.string().optional().describe(DESCRIPTION_GUIDANCE),
+              location: z.string().optional(),
+              salary: z.string().optional(),
+              tags: z.array(z.string()).optional(),
+              postedAt: z.string().optional(),
+              source: z.nativeEnum(Source).optional(),
+              workMode: z.nativeEnum(WorkMode).optional(),
+            }),
+          )
+          .min(1)
+          .max(25),
+        demoCode: z
+          .string()
+          .optional()
+          .describe("Add the whole batch to a demo space instead of real data."),
+      },
+    },
+    async ({ jobs, demoCode }) => {
+      const lines: string[] = [];
+      let created = 0;
+      let updated = 0;
+      let failed = 0;
+      for (const job of jobs) {
+        try {
+          const result = await addManualJob({ ...job, demoCode });
+          if (result.isNew) created++;
+          else updated++;
+          lines.push(...addResultLines(job.title, result));
+        } catch (e) {
+          failed++;
+          lines.push(`✗ "${job.title}" failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      lines.unshift(
+        `${jobs.length} jobs → ${created} created, ${updated} updated${failed ? `, ${failed} FAILED` : ""}. New/re-opened ones are unscored — score them via get_unscored_jobs → set_job_scores.`,
+      );
+      return text(lines.join("\n"));
+    },
+  );
+
+  server.registerTool(
     "update_job",
     {
       title: "Update a job",

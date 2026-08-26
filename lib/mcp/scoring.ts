@@ -97,6 +97,66 @@ export function registerScoringTools(server: McpServer) {
   );
 
   server.registerTool(
+    "set_job_scores",
+    {
+      title: "Set job scores in batch",
+      description:
+        "Write CV-fit scores for many jobs in one call — same semantics per item as set_job_score. Use this for the daily scoring loop instead of one call per job. An unknown jobId doesn't sink the rest; failures are listed in the response.",
+      inputSchema: {
+        scores: z
+          .array(
+            z.object({
+              jobId: z.string(),
+              score: z.number().int().min(0).max(100),
+              eligible: z.boolean(),
+              reasoning: z.string(),
+              matchedSkills: z.array(z.string()).optional(),
+              gaps: z.array(z.string()).optional(),
+            }),
+          )
+          .min(1)
+          .max(100),
+        model: z
+          .string()
+          .optional()
+          .describe('Label for who scored the batch; defaults to "agent".'),
+      },
+    },
+    async ({ scores, model = "agent" }) => {
+      const failures: string[] = [];
+      let written = 0;
+      let notEligible = 0;
+      for (const s of scores) {
+        const job = await prisma.job.findUnique({
+          where: { id: s.jobId },
+          select: { id: true },
+        });
+        if (!job) {
+          failures.push(`✗ no job with id ${s.jobId}`);
+          continue;
+        }
+        const data = {
+          score: s.score,
+          eligible: s.eligible,
+          reasoning: s.reasoning,
+          matchedSkills: s.matchedSkills ?? [],
+          gaps: s.gaps ?? [],
+          model,
+        };
+        await prisma.jobScore.upsert({
+          where: { jobId: s.jobId },
+          create: { jobId: s.jobId, ...data },
+          update: { ...data, evaluatedAt: new Date() },
+        });
+        written++;
+        if (!s.eligible) notEligible++;
+      }
+      const summary = `Wrote ${written}/${scores.length} scores (${notEligible} not eligible)${failures.length ? `, ${failures.length} failed` : ""}.`;
+      return text([summary, ...failures].join("\n"));
+    },
+  );
+
+  server.registerTool(
     "get_scoring_config",
     {
       title: "Get scoring config",
