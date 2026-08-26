@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ActionStatus, Prisma, Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { stripHtml } from "@/lib/format";
+import { isLeadDescription, stripHtml } from "@/lib/format";
+import { companyKey } from "@/lib/normalize";
 import { err, text, type McpServer } from "@/lib/mcp/shared";
 
 export function registerJobReadTools(server: McpServer) {
@@ -18,6 +19,24 @@ export function registerJobReadTools(server: McpServer) {
           .describe("Keyword matched in title, company, or tags."),
         source: z.nativeEnum(Source).optional(),
         minScore: z.number().int().min(0).max(100).optional(),
+        eligible: z
+          .boolean()
+          .optional()
+          .describe("Only jobs the agent flagged eligible (true) or not eligible (false)."),
+        excludeCompany: z
+          .array(z.string())
+          .optional()
+          .describe('Companies to leave out of this query (matched on the normalized name, so "Huzzle Ltd" also excludes "huzzle").'),
+        missingDescription: z
+          .boolean()
+          .optional()
+          .describe("Only jobs whose description is empty or a placeholder lead — the ones needing a real posting (they don't show in get_unscored_jobs once scored)."),
+        maxDescriptionChars: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe("Only jobs whose raw description is at most this many characters — catches truncated or scraper-junk descriptions."),
         status: z.nativeEnum(ActionStatus).optional(),
         freshHours: z
           .number()
@@ -35,10 +54,18 @@ export function registerJobReadTools(server: McpServer) {
           ),
       },
     },
-    async ({ query, source, minScore, status, freshHours, sort = "score", limit = 25, demoCode = null }) => {
+    async ({
+      query, source, minScore, eligible, excludeCompany, missingDescription,
+      maxDescriptionChars, status, freshHours, sort = "score", limit = 25, demoCode = null,
+    }) => {
       const where: Prisma.JobWhereInput = { demoCode };
       if (source) where.source = source;
-      if (minScore != null) where.score = { is: { score: { gte: minScore } } };
+      const scoreIs: Prisma.JobScoreWhereInput = {};
+      if (minScore != null) scoreIs.score = { gte: minScore };
+      if (eligible != null) scoreIs.eligible = eligible;
+      if (Object.keys(scoreIs).length > 0) where.score = { is: scoreIs };
+      if (excludeCompany?.length)
+        where.companyKey = { notIn: excludeCompany.map((c) => companyKey(c)) };
       if (status) where.action = { is: { status } };
       if (freshHours)
         where.fetchedAt = { gte: new Date(Date.now() - freshHours * 3600_000) };
@@ -48,6 +75,25 @@ export function registerJobReadTools(server: McpServer) {
           { company: { contains: query, mode: "insensitive" } },
           { tags: { has: query.toLowerCase() } },
         ];
+
+      // Length filters need SQL length(); resolve candidate ids first with a
+      // generous raw-length cap (HTML markup inflates raw length), then apply
+      // the precise placeholder check in JS before the main query.
+      if (missingDescription || maxDescriptionChars != null) {
+        const cap = Math.min(
+          missingDescription ? 800 : Number.MAX_SAFE_INTEGER,
+          maxDescriptionChars ?? Number.MAX_SAFE_INTEGER,
+        );
+        const rows = await prisma.$queryRaw<Array<{ id: string; description: string }>>`
+          SELECT id, description FROM "Job"
+          WHERE "demoCode" IS NOT DISTINCT FROM ${demoCode}
+            AND length(description) <= ${cap}
+          LIMIT 5000`;
+        const candidates = missingDescription
+          ? rows.filter((r) => isLeadDescription(r.description))
+          : rows;
+        where.id = { in: candidates.map((r) => r.id) };
+      }
 
       const jobs = await prisma.job.findMany({
         where,
@@ -59,9 +105,10 @@ export function registerJobReadTools(server: McpServer) {
         include: { score: true, action: true },
       });
 
+      const describeLen = missingDescription || maxDescriptionChars != null;
       const lines = jobs.map(
         (j) =>
-          `[${j.id}] ${j.score ? `${j.score.score}/100` : "unscored"} · ${j.title} @ ${j.company} · ${j.sourceLabel ?? j.source}${j.action ? ` · ${j.action.status}` : ""}`,
+          `[${j.id}] ${j.score ? `${j.score.score}/100` : "unscored"} · ${j.title} @ ${j.company} · ${j.sourceLabel ?? j.source}${j.action ? ` · ${j.action.status}` : ""}${describeLen ? ` · desc ${stripHtml(j.description).length} chars` : ""}`,
       );
       return text(lines.length ? lines.join("\n") : "No jobs match.");
     },
@@ -101,24 +148,38 @@ export function registerJobReadTools(server: McpServer) {
     {
       title: "Recent matches",
       description:
-        "List the top scored jobs in rolefetchr (across all sources), best CV-fit first. Use to check what's already there before adding, or to review current matches.",
+        "List the top scored jobs in rolefetchr (across all sources), best CV-fit first. Use to check what's already there before adding, or to review current matches. Pass `since` to see only what was scored after a given moment (e.g. \"what appeared above 60 since yesterday\").",
       inputSchema: {
         limit: z.number().int().min(1).max(50).optional(),
         minScore: z.number().int().min(0).max(100).optional(),
+        since: z
+          .string()
+          .optional()
+          .describe("ISO date/datetime; only jobs scored at or after this moment."),
       },
     },
-    async ({ limit = 15, minScore = 30 }) => {
+    async ({ limit = 15, minScore = 30, since }) => {
+      const scoreIs: Prisma.JobScoreWhereInput = { score: { gte: minScore } };
+      if (since) {
+        const date = new Date(since);
+        if (Number.isNaN(date.getTime())) return err(`Invalid since date: ${since}`);
+        scoreIs.evaluatedAt = { gte: date };
+      }
       const jobs = await prisma.job.findMany({
-        where: { score: { is: { score: { gte: minScore } } } },
+        where: { score: { is: scoreIs } },
         orderBy: { score: { score: "desc" } },
         take: limit,
         include: { score: true },
       });
       const lines = jobs.map(
         (j) =>
-          `${j.score?.score}/100 · ${j.title} @ ${j.company} · ${j.sourceLabel ?? j.source} · ${j.sourceUrl}`,
+          `${j.score?.score}/100 · ${j.title} @ ${j.company} · ${j.sourceLabel ?? j.source} · scored ${j.score?.evaluatedAt.toISOString().slice(0, 10)} · ${j.sourceUrl}`,
       );
-      return text(lines.length ? lines.join("\n") : `No jobs scored ${minScore}+ yet.`);
+      return text(
+        lines.length
+          ? lines.join("\n")
+          : `No jobs scored ${minScore}+${since ? ` since ${since}` : ""} yet.`,
+      );
     },
   );
 
