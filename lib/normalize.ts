@@ -200,6 +200,34 @@ export function companyKey(company: string): string {
     .trim();
 }
 
+/**
+ * Earliest index in `text` where a known country/city pattern matches, or -1.
+ * Used by the email parser to split "Company City, Region, Country" lines:
+ * everything before the first place-name is the company.
+ */
+export function locationMatchIndex(text: string): number {
+  let earliest = -1;
+  for (const [, pattern] of COUNTRIES) {
+    const match = new RegExp(pattern.source, "i").exec(text);
+    if (match && (earliest === -1 || match.index < earliest)) earliest = match.index;
+  }
+  return earliest;
+}
+
+/**
+ * Soft-dedupe identity: the same posting reposted under different URLs (per
+ * city/country) shares a fingerprint. Normalized company + normalized title —
+ * deliberately ignores location, so per-city reposts group together.
+ */
+export function jobFingerprint(title: string, company: string): string {
+  const t = title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${companyKey(company)}::${t}`;
+}
+
 // Work mode: HYBRID/ONSITE are detected only from the short, deliberate fields
 // (location, title, tags) — descriptions mention "hybrid" too casually to be a
 // reliable signal. Everything else stays REMOTE (all auto sources are remote

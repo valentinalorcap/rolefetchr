@@ -3,6 +3,7 @@ import {
   companyKey,
   detectWorkMode,
   extractTechs,
+  jobFingerprint,
   normalizeCountry,
   normalizeRegion,
   searchTerms,
@@ -90,6 +91,23 @@ describe("companyKey", () => {
 
   it("keeps distinct companies distinct", () => {
     expect(companyKey("Northwind Labs")).not.toBe(companyKey("Bluefern Systems"));
+  });
+});
+
+describe("jobFingerprint", () => {
+  it("matches the same posting across punctuation and case variants", () => {
+    expect(jobFingerprint("Full-Stack Engineer (React/Node)", "BairesDev")).toBe(
+      jobFingerprint("full stack engineer react node", "BairesDev Inc."),
+    );
+  });
+
+  it("differs for different titles or companies", () => {
+    expect(jobFingerprint("Backend Engineer", "Acme")).not.toBe(
+      jobFingerprint("Frontend Engineer", "Acme"),
+    );
+    expect(jobFingerprint("Backend Engineer", "Acme")).not.toBe(
+      jobFingerprint("Backend Engineer", "Globex"),
+    );
   });
 });
 

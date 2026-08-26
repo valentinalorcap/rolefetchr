@@ -39,3 +39,12 @@ export function relativeTime(date: Date): string {
 export function isLeadDescription(description: string): boolean {
   return stripHtml(description).length < 250;
 }
+
+// Scraper junk is often LONG but says nothing ("reputed company" repeated for
+// 2,000 chars). Low lexical diversity over a non-trivial length is the tell —
+// real postings sit around 0.4-0.7 unique-word ratio.
+export function isLowInformation(description: string): boolean {
+  const words = stripHtml(description).toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length < 80) return false; // short texts are judged by isLeadDescription
+  return new Set(words).size / words.length < 0.25;
+}
