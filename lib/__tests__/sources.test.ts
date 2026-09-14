@@ -2,6 +2,16 @@ import { Source } from "@prisma/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { remoteOkSource } from "@/lib/sources/remoteok";
 import { remotiveSource } from "@/lib/sources/remotive";
+import { jsearchSource } from "@/lib/sources/jsearch";
+
+// The adapter reads its queries from the DB-backed config; stub the module so
+// the test runs without Prisma and exercises both a remote and a city query.
+vi.mock("@/lib/source-queries", () => ({
+  getJsearchQueries: async () => [
+    { query: "remote typescript engineer", remoteOnly: true },
+    { query: "software engineer contract Dublin", remoteOnly: false, country: "ie", employmentTypes: "CONTRACTOR" },
+  ],
+}));
 
 function mockFetchJson(payload: unknown, ok = true, status = 200) {
   vi.stubGlobal(
@@ -102,5 +112,73 @@ describe("remotiveSource", () => {
   it("returns an empty list when the payload has no jobs array", async () => {
     mockFetchJson({});
     await expect(remotiveSource.fetchJobs()).resolves.toEqual([]);
+  });
+});
+
+describe("jsearchSource", () => {
+  const remoteJob = {
+    job_id: "r1",
+    job_title: "TypeScript Engineer",
+    employer_name: "Acme",
+    job_publisher: "LinkedIn",
+    job_employment_type: "FULLTIME",
+    job_apply_link: "https://example.com/r1",
+    job_description: "Remote TS role",
+    job_is_remote: true,
+    job_location: "London, UK",
+    job_posted_at_datetime_utc: "2026-09-10T00:00:00.000Z",
+  };
+  const cityJob = {
+    job_id: "c1",
+    job_title: "Angular Developer (Contract)",
+    employer_name: "Local Co",
+    job_publisher: "Indeed",
+    job_employment_type: "CONTRACTOR",
+    job_apply_link: "https://example.com/c1",
+    job_description: "6-month contract, daily rate",
+    job_is_remote: false,
+    job_location: "Dublin, Ireland",
+  };
+
+  it("runs the configured queries with their params and keeps the API's remote flag", async () => {
+    vi.stubEnv("JSEARCH_API_KEY", "key");
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        const city = url.includes("country=ie");
+        return { ok: true, status: 200, json: async () => ({ data: city ? [cityJob] : [remoteJob] }) };
+      }),
+    );
+
+    const promise = jsearchSource.fetchJobs();
+    await vi.runAllTimersAsync();
+    const jobs = await promise;
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+
+    expect(calls).toHaveLength(2);
+    const [remoteCall, cityCall] = calls;
+    expect(remoteCall).toContain("remote_jobs_only=true");
+    expect(remoteCall).not.toContain("country=");
+    expect(cityCall).toContain("country=ie");
+    expect(cityCall).toContain("employment_types=CONTRACTOR");
+    expect(cityCall).not.toContain("remote_jobs_only");
+    expect(decodeURIComponent(cityCall).replace(/\+/g, " ")).toContain("contract Dublin");
+
+    expect(jobs.find((j) => j.externalId === "r1")).toMatchObject({
+      location: "Remote",
+      remote: true,
+      tags: ["Full-time"],
+      sourceLabel: "LinkedIn",
+    });
+    expect(jobs.find((j) => j.externalId === "c1")).toMatchObject({
+      location: "Dublin, Ireland",
+      remote: false,
+      tags: ["Contract"],
+      sourceLabel: "Indeed",
+    });
   });
 });

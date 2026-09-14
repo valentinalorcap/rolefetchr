@@ -106,14 +106,14 @@ export function registerScoringTools(server: McpServer) {
     {
       title: "Set job score",
       description:
-        "Write (or overwrite) the CV-fit score for a job you scored yourself. Use the rubric from get_scoring_config: score 0-100, eligible=false (and score ≤15) when the role requires relocation / on-site / a visa or work-authorization outside Spain. This is how scores get into the app now.",
+        "Write (or overwrite) the CV-fit score for a job you scored yourself. Use the rubric from get_scoring_config: score 0-100, eligible=false (and score ≤15) when the role fails the rubric's eligibility gate (location, relocation, or work authorization the candidate doesn't hold). This is how scores get into the app now.",
       inputSchema: {
         jobId: z.string(),
         score: z.number().int().min(0).max(100),
         eligible: z
           .boolean()
           .describe(
-            "False if the role requires something Valentina can't provide (relocation, on-site/hybrid, visa/residency/work-auth outside Spain). When false, score must be ≤15.",
+            "False if the role fails the rubric's eligibility gate (relocation, on-site/hybrid outside the candidate's city, visa/residency/work-auth they don't hold). When false, score must be ≤15.",
           ),
         reasoning: z.string().describe("2-3 sentences grounding the score."),
         matchedSkills: z.array(z.string()).optional(),

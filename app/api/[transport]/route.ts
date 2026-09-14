@@ -5,6 +5,7 @@ import { registerScoringTools } from "@/lib/mcp/scoring";
 import { registerEmailTools } from "@/lib/mcp/emails";
 import { registerMuteTools } from "@/lib/mcp/mutes";
 import { registerDemoTools } from "@/lib/mcp/demo";
+import { registerSourceTools } from "@/lib/mcp/sources";
 
 // Prisma needs the Node runtime.
 export const runtime = "nodejs";
@@ -19,6 +20,7 @@ const mcpHandler = createMcpHandler(
     registerEmailTools(server);
     registerMuteTools(server);
     registerDemoTools(server);
+    registerSourceTools(server);
   },
   {},
   { basePath: "/api", maxDuration: 60, verboseLogs: false },

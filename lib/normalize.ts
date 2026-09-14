@@ -49,7 +49,7 @@ const COUNTRIES: Array<[string, RegExp]> = [
   ["India", /\b(india|bangalore|bengaluru|mumbai|delhi|hyderabad|pune)\b/i],
   ["Japan", /\b(japan|tokyo|osaka)\b/i],
   ["Singapore", /\bsingapore\b/i],
-  ["Australia", /\b(australia|sydney|melbourne|brisbane)\b/i],
+  ["Australia", /\b(australia|sydney|melbourne|brisbane|perth|adelaide|canberra)\b/i],
   ["New Zealand", /\b(new zealand|auckland|wellington)\b/i],
   ["Philippines", /\b(philippines|manila)\b/i],
   ["Israel", /\b(israel|tel aviv)\b/i],
@@ -230,8 +230,10 @@ export function jobFingerprint(title: string, company: string): string {
 
 // Work mode: HYBRID/ONSITE are detected only from the short, deliberate fields
 // (location, title, tags) — descriptions mention "hybrid" too casually to be a
-// reliable signal. Everything else stays REMOTE (all auto sources are remote
-// boards). "Hybrid" wins when both appear ("hybrid, 2 days on-site").
+// reliable signal. Everything else stays REMOTE, unless the source itself says
+// the job is not remote (`remote: false`, e.g. a non-remote JSearch city query), in
+// which case the fallback is ONSITE. "Hybrid" wins when both appear ("hybrid,
+// 2 days on-site").
 const HYBRID_PATTERN = /\bhybrid\b|h[ií]brid[oa]/i;
 const ONSITE_PATTERN = /\bon-?site\b|\bin[- ]office\b|\bpresencial\b/i;
 
@@ -241,11 +243,12 @@ export function detectWorkMode(
   location: string | null | undefined,
   title: string,
   tags: string[],
+  remote = true,
 ): WorkModeValue {
   const text = [location ?? "", title, ...tags].join(" ");
   if (HYBRID_PATTERN.test(text)) return "HYBRID";
   if (ONSITE_PATTERN.test(text)) return "ONSITE";
-  return "REMOTE";
+  return remote ? "REMOTE" : "ONSITE";
 }
 
 // Spanish → canonical English terms so the universal search understands both

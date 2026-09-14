@@ -36,7 +36,7 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
         country: normalizeCountry(j.location),
         techs: extractTechs(j.title, j.tags, j.description),
         companyKey: companyKey(j.company),
-        workMode: detectWorkMode(j.location, j.title, j.tags),
+        workMode: detectWorkMode(j.location, j.title, j.tags, j.remote),
         fingerprint: jobFingerprint(j.title, j.company),
       }));
 
