@@ -75,8 +75,8 @@ model JobScore {
   jobId         String   @unique
   job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   score         Int // 0-100
-  // False when the role requires something Valentina can't provide (relocation,
-  // on-site, visa/residency/work-auth outside Spain) — a hard blocker.
+  // False when the role requires something the candidate can't provide
+  // (relocation, on-site elsewhere, visa/residency/work-auth) — a hard blocker.
   eligible      Boolean  @default(true)
   reasoning     String   @db.Text
   matchedSkills String[]
@@ -104,6 +104,10 @@ model ScoringConfig {
   rubric           String   @db.Text
   candidateContext String?  @db.Text
   cv               String?  @db.Text // the CV text jobs are scored against
+  // Per-source search queries (see lib/source-queries.ts for the shape).
+  // Null = each source's built-in generic defaults. Personal targeting
+  // (keywords, countries, employment types) lives here, not in the code.
+  sourceQueries    Json?
   updatedAt        DateTime @updatedAt
 }
 

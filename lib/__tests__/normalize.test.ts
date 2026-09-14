@@ -133,6 +133,11 @@ describe("detectWorkMode", () => {
     expect(detectWorkMode("Remote (Worldwide)", "Software Engineer", ["react"])).toBe("REMOTE");
     expect(detectWorkMode(null, "Software Engineer", [])).toBe("REMOTE");
   });
+
+  it("falls back to on-site when the source says the job is not remote", () => {
+    expect(detectWorkMode("Dublin, Ireland", "Angular Developer", ["Contract"], false)).toBe("ONSITE");
+    expect(detectWorkMode("Dublin (Hybrid)", "Angular Developer", [], false)).toBe("HYBRID");
+  });
 });
 
 describe("searchTerms (Spanish synonyms)", () => {

@@ -22,7 +22,7 @@ Two decoupled pipelines feed a read-heavy UI through Postgres:
 1. **Ingestion** — a daily GitHub Actions cron hits `/api/cron/ingest`, which runs a set of source adapters (`lib/sources/`) and dedupes into the `Job` table. Jobs land unscored.
 2. **Scoring** — the app itself does not call any LLM. An external MCP-capable agent drives the loop: `get_unscored_jobs` → score each against `get_cv` + `get_scoring_config` → `set_job_score`. The CV, rubric, and candidate context are all stored in the database and editable over MCP, so scoring behavior can be tuned without a deploy.
 
-Sources: RemoteOK, Remotive, WeWorkRemotely (RSS), Hacker News "Who's hiring", Himalayas, JSearch (Google for Jobs via RapidAPI — covers LinkedIn/Indeed/Glassdoor), Get on Board (LatAm), plus jobs added manually over MCP and jobs extracted from email alerts.
+Sources: RemoteOK, Remotive, WeWorkRemotely (RSS), Hacker News "Who's hiring", Himalayas, JSearch (Google for Jobs via RapidAPI — covers LinkedIn/Indeed/Glassdoor and local boards; its search queries are configurable at runtime over MCP, including non-remote city searches), Get on Board (LatAm), plus jobs added manually over MCP and jobs extracted from email alerts.
 
 ## Stack
 
@@ -57,8 +57,8 @@ Open http://localhost:3000.
 
 The app exposes an MCP server at `/api/mcp` (bearer-authed with `MCP_TOKEN`). It is the control surface for the external agent that does all the AI work:
 
-- **Read**: `search_jobs`, `get_job`, `recent_matches`, `stats`, `get_unscored_jobs`, `get_cv`, `get_scoring_config`, `list_pending_emails`
-- **Write**: `add_job` (for sites that can't be scraped — LinkedIn, Welcome to the Jungle, …), `set_job_score`, `set_job_action`, `update_scoring_config` (rubric, candidate context, and CV), `mark_email_processed`, `rescore_all`
+- **Read**: `search_jobs`, `get_job`, `recent_matches`, `stats`, `get_unscored_jobs`, `get_cv`, `get_scoring_config`, `get_source_queries`, `list_pending_emails`
+- **Write**: `add_job` (for sites that can't be scraped — LinkedIn, Welcome to the Jungle, …), `set_job_score`, `set_job_action`, `update_scoring_config` (rubric, candidate context, and CV), `update_source_queries` (what the ingestion searches for), `mark_email_processed`, `rescore_all`
 
 Connect from Claude Code:
 
