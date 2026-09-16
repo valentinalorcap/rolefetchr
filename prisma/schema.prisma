@@ -163,6 +163,10 @@ enum Source {
   JSEARCH
   EMAIL
   GETONBOARD
+  JOBICY
+  WORKINGNOMADS
+  JOBSPRESSO
+  NODESK
 }
 
 // Publishers muted from ingestion: accounts that aren't employers but bots

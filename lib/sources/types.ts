@@ -18,6 +18,9 @@ export interface NormalizedJob {
   tags: string[];
   sourceUrl: string;
   postedAt: Date;
+  // True when the adapter could not fetch the full posting and stored a feed
+  // excerpt instead (see Job.descriptionUnverified).
+  descriptionUnverified?: boolean;
 }
 
 /** A pluggable job source. Add one file per source and register it in index.ts. */

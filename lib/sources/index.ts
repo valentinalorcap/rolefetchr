@@ -6,6 +6,10 @@ import { hackerNewsSource } from "./hackernews";
 import { himalayasSource } from "./himalayas";
 import { jsearchSource } from "./jsearch";
 import { getOnBoardSource } from "./getonboard";
+import { jobicySource } from "./jobicy";
+import { workingNomadsSource } from "./workingnomads";
+import { jobspressoSource } from "./jobspresso";
+import { noDeskSource } from "./nodesk";
 
 /** All active job sources. Register new adapters here. */
 export const sources: JobSource[] = [
@@ -16,6 +20,10 @@ export const sources: JobSource[] = [
   himalayasSource,
   jsearchSource,
   getOnBoardSource,
+  jobicySource,
+  workingNomadsSource,
+  jobspressoSource,
+  noDeskSource,
 ];
 
 export type { JobSource, NormalizedJob } from "./types";
