@@ -20,6 +20,8 @@ const SOURCES: Record<Source, SourceMeta> = {
   WORKINGNOMADS: { label: "Working Nomads", code: "WN", color: "#30d158" },
   JOBSPRESSO: { label: "Jobspresso", code: "Jp", color: "#d4a373" },
   NODESK: { label: "NoDesk", code: "ND", color: "#8e8eff" },
+  LANDINGJOBS: { label: "Landing.jobs", code: "Lj", color: "#ff6b6b" },
+  EUREMOTEJOBS: { label: "EU Remote Jobs", code: "EU", color: "#4cc9f0" },
 };
 
 // Common publishers that arrive via JSearch / Email / Manual (sourceLabel).

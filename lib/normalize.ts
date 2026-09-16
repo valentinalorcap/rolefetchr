@@ -16,7 +16,7 @@ export type Region = (typeof REGIONS)[number];
 // Cities and demonyms map to their country so "Berlin" and "Germany (Remote)"
 // land together. Ordered roughly by frequency in the live dataset.
 const COUNTRIES: Array<[string, RegExp]> = [
-  ["United States", /\b(united states|\busa?\b|u\.s\.|new york|brooklyn|san francisco|austin|seattle|boston|chicago|miami|denver|los angeles)\b/i],
+  ["United States", /\b(united states|usa?|u\.s\.?(a\.?)?|new york|brooklyn|san francisco|austin|seattle|boston|chicago|miami|denver|los angeles)(?![a-z])/i],
   ["United Kingdom", /\b(united kingdom|\buk\b|england|scotland|wales|london|manchester|bristol|edinburgh)\b/i],
   ["Germany", /\b(germany|berlin|munich|münchen|hamburg|cologne|köln|deutschland)\b/i],
   ["Netherlands", /\b(netherlands|amsterdam|utrecht|rotterdam|the hague|holland)\b/i],
@@ -109,26 +109,60 @@ const REGION_PATTERNS: Array<[Region, RegExp]> = [
   ["North America", /\b(north america|namer)\b/i],
   ["Asia & Pacific", /\b(asia|apac|oceania)\b/i],
   ["Africa & Middle East", /\b(africa|middle east)\b/i],
-  ["Worldwide", /\b(worldwide|anywhere|global|remote|distributed|international)\b/i],
+  ["Worldwide", /\b(worldwide|anywhere|global(ly)?|remote|distributed|international(ly)?)\b/i],
 ];
 
-/** Canonical country from a free-text location, or null when none is named. */
-export function normalizeCountry(location: string | null | undefined): string | null {
-  if (!location?.trim()) return null;
-  for (const [name, re] of COUNTRIES) if (re.test(location)) return name;
+// Free-text locations are often lists ("Europe, LATAM, APAC, the U.S.,
+// Canada"), restrictions ("USA only") or exclusions ("Internationally located
+// (not in the US, CA, UK)"). Exclusions are dropped before matching — the
+// places they name are exactly where the job is NOT open — and lists are
+// matched part by part, so the first-listed place decides.
+const EXCLUSION = /\b(?:not (?:in|from|based)|except(?:ing)?|excluding|outside(?: of)?|other than)\b[^)]*\)?/gi;
+const PART_SPLIT = /\s*(?:[,;/|&]|\band\b|\bor\b)\s*/i;
+
+function locationParts(location: string): string[] {
+  return location
+    .replace(EXCLUSION, " ")
+    .replace(/\(\s*(\)|$)/g, " ")
+    .split(PART_SPLIT)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+function countryOf(part: string): string | null {
+  for (const [name, re] of COUNTRIES) if (re.test(part)) return name;
   return null;
 }
 
 /**
- * Region bucket from a free-text location. A named country wins (its region);
- * otherwise explicit region words; a bare "Remote"/"Anywhere" is Worldwide;
- * anything else is null (shown as "Unspecified" in the facet).
+ * Canonical country from a free-text location, or null when none is named —
+ * or when several are (a multi-country list is not "a country").
+ */
+export function normalizeCountry(location: string | null | undefined): string | null {
+  if (!location?.trim()) return null;
+  const found = new Set<string>();
+  for (const part of locationParts(location)) {
+    const c = countryOf(part);
+    if (c) found.add(c);
+  }
+  return found.size === 1 ? [...found][0] : null;
+}
+
+/**
+ * Region bucket from a free-text location. A single named country wins (its
+ * region); otherwise the first listed part that names a country or a region;
+ * a bare "Remote"/"Anywhere" is Worldwide; anything else is null (shown as
+ * "Unspecified" in the facet).
  */
 export function normalizeRegion(location: string | null | undefined): Region | null {
   if (!location?.trim()) return null;
   const country = normalizeCountry(location);
   if (country) return COUNTRY_REGION[country] ?? null;
-  for (const [region, re] of REGION_PATTERNS) if (re.test(location)) return region;
+  for (const part of locationParts(location)) {
+    const c = countryOf(part);
+    if (c) return COUNTRY_REGION[c] ?? null;
+    for (const [region, re] of REGION_PATTERNS) if (re.test(part)) return region;
+  }
   return null;
 }
 

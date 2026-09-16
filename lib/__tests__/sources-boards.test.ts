@@ -4,6 +4,8 @@ import { jobicySource } from "@/lib/sources/jobicy";
 import { workingNomadsSource } from "@/lib/sources/workingnomads";
 import { jobspressoSource } from "@/lib/sources/jobspresso";
 import { noDeskSource, parseJobPage, splitTitle } from "@/lib/sources/nodesk";
+import { euRemoteJobsSource } from "@/lib/sources/euremotejobs";
+import { extractBody, landingJobsSource } from "@/lib/sources/landingjobs";
 
 type Reply = { status?: number; json?: unknown; text?: string };
 
@@ -230,5 +232,119 @@ describe("noDeskSource", () => {
   it("throws when a feed is unavailable", async () => {
     mockFetchByUrl([["remote-jobs/index.xml", { status: 500 }], ["engineering/index.xml", { text: feed("") }]]);
     await expect(noDeskSource.fetchJobs()).rejects.toThrow("NoDesk feed failed");
+  });
+});
+
+describe("euRemoteJobsSource", () => {
+  const item = (id: number, category: string, type = "Full Time") => `
+    <item>
+      <title>Role ${id}</title>
+      <link>https://euremotejobs.com/job/role-${id}/</link>
+      <dc:creator><![CDATA[nhalabuda]]></dc:creator>
+      <pubDate>Wed, 16 Sep 2026 12:28:12 +0000</pubDate>
+      <guid isPermaLink="false">https://euremotejobs.com/?post_type=job_listing&#038;p=${id}</guid>
+      <description><![CDATA[Excerpt]]></description>
+      <content:encoded><![CDATA[<p>Full body ${id}</p>]]></content:encoded>
+      <job_listing:company><![CDATA[Lemon.io]]></job_listing:company>
+      <job_listing:location><![CDATA[Europe, LATAM, APAC]]></job_listing:location>
+      <job_listing:salary><![CDATA[$83,000 - $130,000 USD per year]]></job_listing:salary>
+      <job_listing:job_category><![CDATA[${category}]]></job_listing:job_category>
+      <job_listing:job_type><![CDATA[${type}]]></job_listing:job_type>
+    </item>`;
+  const feed = (items: string) =>
+    `<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:job_listing="https://euremotejobs.com"><channel>${items}</channel></rss>`;
+
+  it("keeps technical categories only and uses the board's company, not the poster", async () => {
+    const calls = mockFetchByUrl([
+      ["euremotejobs.com/?feed=job_feed", { text: feed(item(1, "Data, Engineering", "Freelance, Part Time") + item(2, "Sales") + item(3, "Admin &amp; Operations, IT")) }],
+    ]);
+
+    const jobs = await euRemoteJobsSource.fetchJobs();
+    expect(calls[0]).toContain("posts_per_page=100");
+    expect(jobs.map((j) => j.externalId)).toEqual(["1", "3"]);
+    expect(jobs[0]).toMatchObject({
+      source: Source.EUREMOTEJOBS,
+      title: "Role 1",
+      company: "Lemon.io",
+      description: "<p>Full body 1</p>",
+      location: "Europe, LATAM, APAC",
+      salary: "$83,000 - $130,000 USD per year",
+      tags: ["Freelance", "Part Time", "Data", "Engineering"],
+      sourceUrl: "https://euremotejobs.com/job/role-1/",
+    });
+    expect(jobs[1].tags).toEqual(["Full Time", "Admin & Operations", "IT"]);
+  });
+
+  it("throws on a non-OK response", async () => {
+    mockFetchByUrl([["euremotejobs.com", { status: 503 }]]);
+    await expect(euRemoteJobsSource.fetchJobs()).rejects.toThrow("EU Remote Jobs responded 503");
+  });
+});
+
+describe("landingJobsSource", () => {
+  const entry = (slug: string, policy: string, jobType: string, city = "Lisbon", country = "Portugal") => `
+    <entry>
+      <id>https://landing.jobs/at/acme/${slug}</id>
+      <published>2026-09-10T14:12:54Z</published>
+      <updated>2026-09-10T14:12:54Z</updated>
+      <link rel="alternate" type="text/html" href="https://landing.jobs/at/acme/${slug}?utm_source=rss"/>
+      <title>Backend Developer</title>
+      <content type="html"><![CDATA[<img class="logo" src="https://x/logo.png" /><div class="offer-info">At Acme (${jobType}), in ${city}<br />Remote policy: ${policy}</div><div class="role-description"><div><strong>Backend Developer</strong></div><div>Build things.</div></div>]]></content>
+      <author><name>Acme</name></author>
+      <lj:city>${city}</lj:city>
+      <lj:country>${country}</lj:country>
+      <lj:salary>€70.000 - €78.000</lj:salary>
+      <lj:job_type>${jobType}</lj:job_type>
+      <lj:category>Back-end Developer</lj:category>
+      <lj:expires_at>2027-05-12</lj:expires_at>
+      <lj:location_type>${policy}</lj:location_type>
+      <lj:remote_policy>${policy}</lj:remote_policy>
+    </entry>`;
+  const feed = (entries: string) =>
+    `<?xml version="1.0" encoding="UTF-8"?><feed xml:lang="en-US" xmlns="http://www.w3.org/2005/Atom"><id>https://landing.jobs/</id><title>Jobs</title>${entries}</feed>`;
+
+  it("reads Atom entries, keeps fully-remote postings only and splits the engagement", async () => {
+    mockFetchByUrl([
+      [
+        "landing.jobs/feed",
+        {
+          text: feed(
+            entry("remote-dev", "Full remote", "Permanent / Contractor", "false", "") +
+              entry("hybrid-dev", "Partial remote", "Permanent") +
+              entry("global-dev", "Global remote", "Contractor", "Portugal", "Portugal"),
+          ),
+        },
+      ],
+    ]);
+
+    const jobs = await landingJobsSource.fetchJobs();
+    expect(jobs.map((j) => j.externalId)).toEqual([
+      "https://landing.jobs/at/acme/remote-dev",
+      "https://landing.jobs/at/acme/global-dev",
+    ]);
+    expect(jobs[0]).toMatchObject({
+      source: Source.LANDINGJOBS,
+      title: "Backend Developer",
+      company: "Acme",
+      description: "<div><strong>Backend Developer</strong></div><div>Build things.</div>",
+      location: "Remote",
+      salary: "€70.000 - €78.000",
+      tags: ["Permanent", "Contractor", "Back-end Developer", "Full remote"],
+      sourceUrl: "https://landing.jobs/at/acme/remote-dev",
+    });
+    expect(jobs[0].postedAt.toISOString()).toBe("2026-09-10T14:12:54.000Z");
+    expect(jobs[1]).toMatchObject({ location: "Portugal (Remote)", tags: ["Contractor", "Back-end Developer", "Global remote"] });
+  });
+
+  it("strips the logo and offer-info wrapper when there is no role-description block", () => {
+    expect(extractBody('<img class="logo" src="x" /><div class="offer-info">At Acme<br />x</div><p>Body</p>')).toBe("<p>Body</p>");
+  });
+
+  it("returns nothing for an RSS-shaped payload and throws on a non-OK response", async () => {
+    mockFetchByUrl([["landing.jobs/feed", { text: "<rss><channel><item><title>x</title></item></channel></rss>" }]]);
+    await expect(landingJobsSource.fetchJobs()).resolves.toEqual([]);
+
+    mockFetchByUrl([["landing.jobs/feed", { status: 500 }]]);
+    await expect(landingJobsSource.fetchJobs()).rejects.toThrow("Landing.jobs responded 500");
   });
 });

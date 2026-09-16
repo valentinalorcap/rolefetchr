@@ -10,6 +10,8 @@ import { jobicySource } from "./jobicy";
 import { workingNomadsSource } from "./workingnomads";
 import { jobspressoSource } from "./jobspresso";
 import { noDeskSource } from "./nodesk";
+import { landingJobsSource } from "./landingjobs";
+import { euRemoteJobsSource } from "./euremotejobs";
 
 /** All active job sources. Register new adapters here. */
 export const sources: JobSource[] = [
@@ -24,6 +26,8 @@ export const sources: JobSource[] = [
   workingNomadsSource,
   jobspressoSource,
   noDeskSource,
+  landingJobsSource,
+  euRemoteJobsSource,
 ];
 
 export type { JobSource, NormalizedJob } from "./types";
