@@ -26,8 +26,25 @@ export const jsearchQuerySchema = z.object({
 });
 export type JSearchQuery = z.infer<typeof jsearchQuerySchema>;
 
+// Adzuna has per-country editions (the code is part of the URL) and no
+// remote filter of its own — put "remote" in the query text when that is
+// what you are after. `contractOnly` maps to the API's contract=1 filter.
+export const adzunaQuerySchema = z.object({
+  query: z.string().trim().min(1).describe('Search text, e.g. "remote software engineer" or "front end developer contract".'),
+  country: z
+    .string()
+    .trim()
+    .length(2)
+    .toLowerCase()
+    .describe('Adzuna country edition (ISO 3166-1 alpha-2), e.g. "gb", "au", "de", "us".'),
+  where: z.string().trim().min(1).optional().describe('Optional place name to narrow to, e.g. a city.'),
+  contractOnly: z.boolean().default(false).describe("Only contract (non-permanent) listings."),
+});
+export type AdzunaQuery = z.infer<typeof adzunaQuerySchema>;
+
 export const sourceQueriesSchema = z.object({
   jsearch: z.array(jsearchQuerySchema).min(1).max(10).optional(),
+  adzuna: z.array(adzunaQuerySchema).min(1).max(10).optional(),
 });
 export type SourceQueries = z.infer<typeof sourceQueriesSchema>;
 
@@ -50,6 +67,15 @@ export async function getSourceQueries(): Promise<SourceQueries | null> {
 export async function getJsearchQueries(): Promise<JSearchQuery[]> {
   const stored = await getSourceQueries();
   return stored?.jsearch?.length ? stored.jsearch : DEFAULT_JSEARCH_QUERIES;
+}
+
+/**
+ * Adzuna queries to run. There are no built-in defaults (a country is
+ * required), so the adapter stays idle until queries are configured.
+ */
+export async function getAdzunaQueries(): Promise<AdzunaQuery[]> {
+  const stored = await getSourceQueries();
+  return stored?.adzuna ?? [];
 }
 
 /** Replace the stored queries (pass null to fall back to the defaults). */
