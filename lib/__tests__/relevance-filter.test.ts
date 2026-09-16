@@ -32,6 +32,9 @@ describe("isIrrelevant (title-based relevance gate)", () => {
     "DevOps Engineer",
     "Security Engineer",
     "Platform Engineer",
+    "Principal Environmental Scientist / Engineer (Contaminated Land)",
+    "Senior Wastewater Modeller/Planning Engineer - Water",
+    "Principal Strategic Planning Engineer",
   ])("drops out-of-scope engineering roles: %s", (title) => {
     expect(isIrrelevant(title)).toBe(true);
   });
