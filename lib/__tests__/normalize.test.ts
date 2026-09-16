@@ -42,6 +42,25 @@ describe("normalizeCountry / normalizeRegion", () => {
     expect(normalizeRegion(raw)).toBe(region);
   });
 
+  // Free-text lists, restrictions and exclusions (Working Nomads style).
+  it.each([
+    ["Europe, LATAM, APAC, the U.S., Canada", null, "Europe"],
+    ["USA, Canada or UK only", null, "North America"],
+    ["USA only", "United States", "North America"],
+    ["Internationally located (not in the US, CA, UK, NZ, or AU)", null, "Worldwide"],
+    ["Remote (Worldwide) - Working East Coast Hours", null, "Worldwide"],
+    ["Time zone: CET (+/- 3 hours)", null, "Europe"],
+    ["the EU, the US, Canada, the UK, Australia, Singapore", null, "Europe"],
+    ["Germany, UK", null, "Europe"],
+    ["Bulgaria, Czechia, Hungary, Ireland, Poland", null, "Europe"],
+    ["Anywhere in India", "India", "Asia & Pacific"],
+    ["Europe, Denmark", "Denmark", "Europe"],
+    ["Australia & New Zealand (REMOTE)", null, "Asia & Pacific"],
+  ])("list/exclusion text: %s → %s / %s", (raw, country, region) => {
+    expect(normalizeCountry(raw)).toBe(country);
+    expect(normalizeRegion(raw)).toBe(region);
+  });
+
   it("returns null for empty or unrecognizable locations", () => {
     expect(normalizeRegion(null)).toBeNull();
     expect(normalizeRegion("")).toBeNull();
