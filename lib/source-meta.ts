@@ -16,6 +16,10 @@ const SOURCES: Record<Source, SourceMeta> = {
   EMAIL: { label: "Email", code: "✉", color: "#ff7a98" },
   MANUAL: { label: "Manual", code: "M", color: "#aeb0b6" },
   GETONBOARD: { label: "Get on Board", code: "GB", color: "#ffd60a" },
+  JOBICY: { label: "Jobicy", code: "Jc", color: "#ff9f0a" },
+  WORKINGNOMADS: { label: "Working Nomads", code: "WN", color: "#30d158" },
+  JOBSPRESSO: { label: "Jobspresso", code: "Jp", color: "#d4a373" },
+  NODESK: { label: "NoDesk", code: "ND", color: "#8e8eff" },
 };
 
 // Common publishers that arrive via JSearch / Email / Manual (sourceLabel).
