@@ -39,10 +39,15 @@ function buildUrl(q: JSearchQuery): string {
   return `https://${HOST}/search?${params.toString()}`;
 }
 
+// A query usually answers in 5-8s but can stall; without a cap, one stalled
+// query eats the whole run's time budget.
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function search(q: JSearchQuery, key: string): Promise<JSearchJob[]> {
   const res = await fetch(buildUrl(q), {
     headers: { "X-RapidAPI-Key": key, "X-RapidAPI-Host": HOST },
     cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`JSearch responded ${res.status} for "${q.query}"`);
   const data = (await res.json()) as { data?: JSearchJob[] };
@@ -73,14 +78,14 @@ export const jsearchSource: JobSource = {
     // and let one query's failure (e.g. 429) not sink the others.
     const queries = await getJsearchQueries();
     const collected: JSearchJob[] = [];
-    for (const q of queries) {
+    for (const [i, q] of queries.entries()) {
+      if (i > 0) await sleep(1200);
       try {
         collected.push(...(await search(q, key)));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`JSearch query skipped — ${message}`);
       }
-      await sleep(1200);
     }
 
     const byId = new Map<string, NormalizedJob>();
