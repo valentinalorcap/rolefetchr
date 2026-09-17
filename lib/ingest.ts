@@ -83,11 +83,36 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
   }
 }
 
-/** Run every source sequentially. One source failing doesn't stop the others. */
-export async function ingestAll(): Promise<IngestResult[]> {
-  const results: IngestResult[] = [];
-  for (const src of sources) {
-    results.push(await ingestSource(src));
-  }
+export interface SourceSelection {
+  /** Run only these sources (Source enum names). */
+  only?: string[];
+  /** Run every source except these. */
+  except?: string[];
+}
+
+/** Pick the registered sources a run covers. Throws on a name that isn't registered. */
+export function selectSources(all: JobSource[], { only = [], except = [] }: SourceSelection = {}): JobSource[] {
+  const known = new Set<string>(all.map((s) => s.source));
+  const unknown = [...only, ...except].filter((name) => !known.has(name));
+  if (unknown.length > 0) throw new Error(`Unknown source: ${unknown.join(", ")}`);
+  return all.filter((s) => (only.length === 0 || only.includes(s.source)) && !except.includes(s.source));
+}
+
+// Sources hit different hosts, so they run a few at a time: one slow source
+// can't starve the rest of the run's time budget, while the DB pool stays small.
+const INGEST_CONCURRENCY = 4;
+
+/** Run the selected sources, a few at a time. One source failing doesn't stop the others. */
+export async function ingestAll(selection?: SourceSelection): Promise<IngestResult[]> {
+  const selected = selectSources(sources, selection);
+  const results = new Array<IngestResult>(selected.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < selected.length) {
+      const i = next++;
+      results[i] = await ingestSource(selected[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(INGEST_CONCURRENCY, selected.length) }, worker));
   return results;
 }
