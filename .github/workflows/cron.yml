@@ -12,12 +12,24 @@ on:
 env:
   APP_URL: https://rolefetchr.valentinalorcap.com
 
+# Two invocations so each gets its own function time budget: JSearch runs
+# several slow queries back to back and used to starve every source after it.
 jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger ingest
+      - name: Trigger ingest (all sources except JSearch)
         run: |
           curl -fsS --retry 3 --retry-delay 10 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "$APP_URL/api/cron/ingest"
+            "$APP_URL/api/cron/ingest?except=JSEARCH"
+
+  ingest-jsearch:
+    runs-on: ubuntu-latest
+    steps:
+      # No retry: every attempt spends the monthly JSearch request quota.
+      - name: Trigger ingest (JSearch)
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "$APP_URL/api/cron/ingest?only=JSEARCH"
