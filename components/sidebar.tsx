@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/jobs", label: "Roles", icon: "💼" },
   { href: "/best", label: "Best matches", icon: "🚀" },
+  { href: "/freelance", label: "Freelance & contract", icon: "🧩" },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },
   { href: "/archived", label: "Archived", icon: "🗄️" },

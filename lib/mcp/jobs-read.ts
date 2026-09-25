@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ActionStatus, Prisma, Source } from "@prisma/client";
+import { ActionStatus, Engagement, Prisma, Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isLeadDescription, stripHtml } from "@/lib/format";
 import { companyKey } from "@/lib/normalize";
@@ -38,6 +38,10 @@ export function registerJobReadTools(server: McpServer) {
           .optional()
           .describe("Only jobs whose raw description is at most this many characters — catches truncated or scraper-junk descriptions."),
         status: z.nativeEnum(ActionStatus).optional(),
+        engagement: z
+          .array(z.enum(["FULL_TIME", "PART_TIME", "CONTRACT", "FREELANCE", "NONE"]))
+          .optional()
+          .describe("Only jobs with one of these declared engagements (NONE = not declared). E.g. [\"CONTRACT\", \"FREELANCE\", \"PART_TIME\"] for independent work."),
         freshHours: z
           .number()
           .int()
@@ -56,10 +60,17 @@ export function registerJobReadTools(server: McpServer) {
     },
     async ({
       query, source, minScore, eligible, excludeCompany, missingDescription,
-      maxDescriptionChars, status, freshHours, sort = "score", limit = 25, demoCode = null,
+      maxDescriptionChars, status, engagement, freshHours, sort = "score", limit = 25, demoCode = null,
     }) => {
       const where: Prisma.JobWhereInput = { demoCode };
       if (source) where.source = source;
+      if (engagement?.length) {
+        const declared = engagement.filter((e): e is Engagement => e !== "NONE");
+        const or: Prisma.JobWhereInput[] = [];
+        if (declared.length) or.push({ engagement: { in: declared } });
+        if (engagement.includes("NONE")) or.push({ engagement: null });
+        where.AND = [{ OR: or }];
+      }
       const scoreIs: Prisma.JobScoreWhereInput = {};
       if (minScore != null) scoreIs.score = { gte: minScore };
       if (eligible != null) scoreIs.eligible = eligible;
@@ -108,7 +119,7 @@ export function registerJobReadTools(server: McpServer) {
       const describeLen = missingDescription || maxDescriptionChars != null;
       const lines = jobs.map(
         (j) =>
-          `[${j.id}] ${j.score ? `${j.score.score}/100` : "unscored"} · ${j.title} @ ${j.company} · ${j.sourceLabel ?? j.source}${j.action ? ` · ${j.action.status}` : ""}${describeLen ? ` · desc ${stripHtml(j.description).length} chars` : ""}`,
+          `[${j.id}] ${j.score ? `${j.score.score}/100` : "unscored"} · ${j.title} @ ${j.company} · ${j.sourceLabel ?? j.source}${j.engagement ? ` · ${j.engagement}` : ""}${j.action ? ` · ${j.action.status}` : ""}${describeLen ? ` · desc ${stripHtml(j.description).length} chars` : ""}`,
       );
       return text(lines.length ? lines.join("\n") : "No jobs match.");
     },
@@ -131,6 +142,7 @@ export function registerJobReadTools(server: McpServer) {
       const lines = [
         `${job.title} @ ${job.company}`,
         `Source: ${job.sourceLabel ?? job.source} · ${job.location ?? "—"} · ${job.salary ?? "—"}`,
+        `Work mode: ${job.workMode} · Engagement: ${job.engagement ?? "not declared"}`,
         `Posted: ${job.postedAt.toISOString()} · URL: ${job.sourceUrl}`,
         `Tags: ${job.tags.join(", ") || "—"}`,
         job.score
