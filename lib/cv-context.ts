@@ -24,7 +24,7 @@ The candidate is based in <HOME_CITY>, <HOME_COUNTRY> (<TIMEZONE>) and works as 
     · requires employment through a payroll / legal entity the candidate cannot join (<LOCAL_PAYROLL_CONSTRAINT, if any>).
     These are deal-breakers for a <HOME_CITY>-based contractor — flag them and score them low even if the tech is a perfect match.
   - Timezone: overlap with <TIMEZONE> is easy; roles demanding near-full overlap with a distant timezone are a drawback but, on their own, not a hard blocker.
-- Engagement type (a modifier, applied after eligibility): an EXPLICIT contractor / freelance / B2B engagement (in the JD or the source's "Contract" tag) = add +5 to +10; a plain "remote" label with no engagement information = neutral, no bonus and no penalty.
+- Engagement type (a modifier, applied after eligibility): an EXPLICIT contractor / freelance / B2B engagement (in the JD or the source's "Contract" tag) = add +5 to +10; a plain "remote" label with no engagement information = neutral, no bonus and no penalty. Part-time and project-based (freelance) work are welcome: judge them on the same stack/eligibility rules, plus the rate — a stated rate below <MIN_HOURLY_RATE> = not eligible; at or above <TARGET_HOURLY_RATE> = add +5; no rate stated = neutral. Hours per week and schedule are never a criterion: the candidate is available for any load and any timezone.
 - Stack match: <PRIMARY_STACK> = high; <SECONDARY_STACK> = medium (transferable); <UNRELATED_STACK> = low.
 - Seniority fit: <TARGET_SENIORITY> = high; junior/entry = medium; staff/principal/lead-only or "8+ years" = lower.
 - Domain interest: <PREFERRED_DOMAINS> = high; <NEUTRAL_DOMAINS> = medium; <AVOIDED_DOMAINS> = low.

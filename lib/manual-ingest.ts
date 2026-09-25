@@ -1,7 +1,7 @@
-import { Source, WorkMode } from "@prisma/client";
+import { Engagement, Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isLeadDescription, isLowInformation } from "@/lib/format";
-import { companyKey, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
+import { companyKey, detectEngagement, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface ManualJobInput {
   platform: string;
@@ -24,6 +24,9 @@ export interface ManualJobInput {
   // How the role is worked. When omitted it's detected from location/title/tags
   // (defaulting to REMOTE); HYBRID/ONSITE get a distinct badge in the UI.
   workMode?: WorkMode;
+  // The engagement the posting declares. When omitted it's read from explicit
+  // title/tag signals only, and stays null when nothing says so.
+  engagement?: Engagement | null;
 }
 
 export interface AddJobResult {
@@ -57,6 +60,7 @@ export interface JobContentFields {
   salary: string | null;
   tags: string[];
   workMode: WorkMode;
+  engagement: Engagement | null;
 }
 
 export interface MergeOutcome {
@@ -79,7 +83,7 @@ export function mergeJobFields(
   existing: JobContentFields,
   input: Pick<
     ManualJobInput,
-    "title" | "company" | "description" | "location" | "salary" | "tags" | "workMode"
+    "title" | "company" | "description" | "location" | "salary" | "tags" | "workMode" | "engagement"
   >,
 ): MergeOutcome {
   const changed: string[] = [];
@@ -93,6 +97,7 @@ export function mergeJobFields(
     salary: existing.salary,
     tags: input.tags ?? existing.tags,
     workMode: existing.workMode,
+    engagement: existing.engagement,
   };
   if (input.title !== existing.title) changed.push("title");
   if (input.company !== existing.company) changed.push("company");
@@ -133,6 +138,14 @@ export function mergeJobFields(
   merged.workMode =
     input.workMode ?? detectWorkMode(merged.location, merged.title, merged.tags);
   if (merged.workMode !== existing.workMode) changed.push("workMode");
+
+  // An explicit value (even null, to clear a wrong one) wins; otherwise a
+  // stored value stays, and a blank one may be filled from the new signals.
+  merged.engagement =
+    input.engagement !== undefined
+      ? input.engagement
+      : (existing.engagement ?? detectEngagement(merged.title, merged.tags));
+  if (merged.engagement !== existing.engagement) changed.push("engagement");
 
   const scoreCleared =
     storedIsLead &&
@@ -190,6 +203,10 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
     const description = input.description ?? "";
     const workMode =
       input.workMode ?? detectWorkMode(input.location, input.title, input.tags ?? []);
+    const engagement =
+      input.engagement !== undefined
+        ? input.engagement
+        : detectEngagement(input.title, input.tags ?? []);
     const job = await prisma.job.create({
       data: {
         source,
@@ -206,6 +223,7 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
         tags: input.tags ?? [],
         demoCode,
         workMode,
+        engagement,
         region: normalizeRegion(input.location),
         country: normalizeCountry(input.location),
         techs: extractTechs(input.title, input.tags ?? [], description),
@@ -239,6 +257,7 @@ export async function addManualJob(input: ManualJobInput): Promise<AddJobResult>
       salary: merged.salary,
       tags: merged.tags,
       workMode: merged.workMode,
+      engagement: merged.engagement,
       lastSeenAt: new Date(),
       region: normalizeRegion(merged.location),
       country: normalizeCountry(merged.location),

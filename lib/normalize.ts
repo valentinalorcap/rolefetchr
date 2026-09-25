@@ -285,6 +285,33 @@ export function detectWorkMode(
   return remote ? "REMOTE" : "ONSITE";
 }
 
+export type EngagementValue = "FULL_TIME" | "PART_TIME" | "CONTRACT" | "FREELANCE";
+
+// Engagement is read from explicit signals only — the source's own type field
+// (already normalized into tags by the adapters: "Contract", "Part-time",
+// "Freelance", "Full-time") and the title. Descriptions are left out on
+// purpose: "contract" and "full-time" appear in most postings in unrelated
+// sentences, and a guessed value is worse than none.
+const ENGAGEMENT_PATTERNS: Array<[EngagementValue, RegExp]> = [
+  ["FREELANCE", /\bfreelanc(e|er|ing)\b|\bproject[- ]based\b|\bper[- ]project\b|\bfixed[- ]price\b/i],
+  ["PART_TIME", /\bpart[- ]?time\b|\bmedia jornada\b|\bmedio tiempo\b/i],
+  ["CONTRACT", /\bcontract(or|ing)?\b|\bb2b\b|\bfixed[- ]term\b|\bfreiberuflich\b/i],
+  ["FULL_TIME", /\bfull[- ]?time\b|\bjornada completa\b|\btiempo completo\b/i],
+];
+
+/**
+ * The engagement a posting declares, or null when nothing explicit says so.
+ * When several apply, the more specific arrangement wins ("full-time contract"
+ * is a contract; "part-time freelance" is freelance).
+ */
+export function detectEngagement(title: string, tags: string[]): EngagementValue | null {
+  const text = [title, ...tags].join(" | ");
+  for (const [value, pattern] of ENGAGEMENT_PATTERNS) {
+    if (pattern.test(text)) return value;
+  }
+  return null;
+}
+
 // Spanish → canonical English terms so the universal search understands both
 // ("alemania" finds Germany, "europa" finds Europe). Countries/regions only.
 const SEARCH_SYNONYMS: Record<string, string> = {

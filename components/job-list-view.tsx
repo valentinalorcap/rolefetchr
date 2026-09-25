@@ -112,6 +112,7 @@ export async function JobListView({
           action={action}
           statusAction={statusAction}
           hideIngested={hideIngested}
+          hideEngagement={scope.kind === "demo"}
           companyLabel={scope.kind === "demo" ? scope.space.label : undefined}
           facets={facets}
         />

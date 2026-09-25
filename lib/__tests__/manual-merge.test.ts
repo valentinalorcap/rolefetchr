@@ -16,6 +16,7 @@ const existing = (over: Partial<JobContentFields> = {}): JobContentFields => ({
   salary: null,
   tags: ["react"],
   workMode: "REMOTE",
+  engagement: null,
   ...over,
 });
 
@@ -115,5 +116,25 @@ describe("mergeJobFields — work mode", () => {
   it("an explicit workMode wins over detection", () => {
     const out = mergeJobFields(existing(), { ...input, workMode: "ONSITE" });
     expect(out.merged.workMode).toBe("ONSITE");
+  });
+});
+
+describe("mergeJobFields — engagement", () => {
+  it("keeps a stored value when the input says nothing", () => {
+    const out = mergeJobFields(existing({ engagement: "CONTRACT" }), input);
+    expect(out.merged.engagement).toBe("CONTRACT");
+    expect(out.changed).not.toContain("engagement");
+  });
+
+  it("fills a blank value from explicit title/tag signals only", () => {
+    expect(mergeJobFields(existing(), { ...input, tags: ["Freelance"] }).merged.engagement).toBe("FREELANCE");
+    expect(mergeJobFields(existing(), input).merged.engagement).toBeNull();
+  });
+
+  it("an explicit input value wins, including null to clear a wrong one", () => {
+    expect(mergeJobFields(existing(), { ...input, engagement: "PART_TIME" }).merged.engagement).toBe("PART_TIME");
+    const cleared = mergeJobFields(existing({ engagement: "CONTRACT" }), { ...input, engagement: null });
+    expect(cleared.merged.engagement).toBeNull();
+    expect(cleared.changed).toContain("engagement");
   });
 });

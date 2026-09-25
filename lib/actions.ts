@@ -49,8 +49,9 @@ export async function countFilteredJobs(
 ): Promise<number> {
   const scope = await getScope();
   if (!scope) throw new Error("Not authorized.");
-  const { countJobs, parseJobFilters, BEST_MATCHES_BASE } = await import("@/lib/jobs");
-  // Best matches carries a tab-level constraint the URL can't remove.
-  const base = action === "/best" ? BEST_MATCHES_BASE : undefined;
+  const { countJobs, parseJobFilters, BEST_MATCHES_BASE, FREELANCE_BASE } = await import("@/lib/jobs");
+  // Best matches and Freelance carry a tab-level constraint the URL can't remove.
+  const base =
+    action === "/best" ? BEST_MATCHES_BASE : action === "/freelance" ? FREELANCE_BASE : undefined;
   return countJobs(parseJobFilters(params), scope.demoCode, base);
 }
