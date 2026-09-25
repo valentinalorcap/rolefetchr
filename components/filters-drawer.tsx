@@ -174,6 +174,7 @@ export function FiltersDrawer({
   action,
   statusAction,
   hideIngested = false,
+  hideEngagement = false,
   companyLabel,
 }: {
   facets: Facets;
@@ -185,6 +186,8 @@ export function FiltersDrawer({
   // point this at /jobs — picking other buckets means "browse").
   statusAction?: string;
   hideIngested?: boolean;
+  // The engagement group is the owner's track; demo spaces don't see it.
+  hideEngagement?: boolean;
   // In a demo, the MANUAL source is the company's own board — label it so.
   companyLabel?: string;
 }) {
@@ -531,8 +534,8 @@ export function FiltersDrawer({
             </div>
           ) : null}
 
-          {groupHeader("engagement", "Engagement", sel.engagements.length)}
-          {groups.engagement ? (
+          {hideEngagement ? null : groupHeader("engagement", "Engagement", sel.engagements.length)}
+          {groups.engagement && !hideEngagement ? (
             <div className="flex flex-wrap gap-1.5 pb-3 pt-0.5">
               {ENGAGEMENT_KEYS.map((key) =>
                 pill(ENGAGEMENT_LABELS[key], sel.engagements.includes(key), () =>
@@ -602,6 +605,7 @@ export function FilterChips({
   baseline,
   params,
   action,
+  hideEngagement = false,
   companyLabel,
 }: {
   facets: Facets;
@@ -609,6 +613,7 @@ export function FilterChips({
   baseline: FilterBaseline;
   params: Record<string, string>;
   action: string;
+  hideEngagement?: boolean;
   companyLabel?: string;
 }) {
   const router = useRouter();
@@ -666,8 +671,9 @@ export function FilterChips({
     chips.push({ param: "country", value: c, label: c });
   for (const t of filters.techs)
     chips.push({ param: "tech", value: t, label: t });
-  for (const e of filters.engagements)
-    chips.push({ param: "engagement", value: e, label: ENGAGEMENT_LABELS[e] });
+  if (!hideEngagement)
+    for (const e of filters.engagements)
+      chips.push({ param: "engagement", value: e, label: ENGAGEMENT_LABELS[e] });
 
   if (chips.length === 0) return null;
 

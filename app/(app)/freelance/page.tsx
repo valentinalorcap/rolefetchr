@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { JobListView } from "@/components/job-list-view";
 import { FREELANCE_BASE } from "@/lib/jobs";
+import { getScope } from "@/lib/scope";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -11,6 +13,9 @@ export default async function FreelancePage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  // The owner's track only — a demo space has no engagement data or tab.
+  const scope = await getScope();
+  if (scope?.kind === "demo") redirect("/jobs");
 
   return (
     <JobListView

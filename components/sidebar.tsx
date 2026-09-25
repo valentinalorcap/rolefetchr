@@ -9,10 +9,11 @@ import { sourceMeta } from "@/lib/source-meta";
 import { exitDemoAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
+// ownerOnly entries are the owner's own search tracks; demo spaces don't get them.
 const NAV = [
   { href: "/jobs", label: "Roles", icon: "💼" },
   { href: "/best", label: "Best matches", icon: "🚀" },
-  { href: "/freelance", label: "Freelance & contract", icon: "🧩" },
+  { href: "/freelance", label: "Freelance & contract", icon: "🧩", ownerOnly: true },
   { href: "/saved", label: "Saved", icon: "🤍" },
   { href: "/applied", label: "Applied", icon: "✅" },
   { href: "/archived", label: "Archived", icon: "🗄️" },
@@ -48,7 +49,7 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((n) => {
+        {NAV.filter((n) => !(isDemo && n.ownerOnly)).map((n) => {
           const active = navActive(pathname, n.href);
           return (
             <Link
