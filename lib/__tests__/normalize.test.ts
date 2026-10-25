@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   companyKey,
+  detectEngagement,
   detectWorkMode,
   extractTechs,
   jobFingerprint,
@@ -169,5 +170,32 @@ describe("searchTerms (Spanish synonyms)", () => {
   it("passes ordinary keywords through unchanged", () => {
     expect(searchTerms("react")).toEqual(["react"]);
     expect(searchTerms("Northwind")).toEqual(["Northwind"]);
+  });
+});
+
+describe("detectEngagement", () => {
+  it("reads the source's normalized type tags", () => {
+    expect(detectEngagement("Software Engineer", ["Contract"])).toBe("CONTRACT");
+    expect(detectEngagement("Software Engineer", ["Part-time"])).toBe("PART_TIME");
+    expect(detectEngagement("Software Engineer", ["Freelance"])).toBe("FREELANCE");
+    expect(detectEngagement("Software Engineer", ["Full-time"])).toBe("FULL_TIME");
+  });
+
+  it("reads explicit title signals", () => {
+    expect(detectEngagement("Freelance React Developer", [])).toBe("FREELANCE");
+    expect(detectEngagement("Angular Developer (Contract)", [])).toBe("CONTRACT");
+    expect(detectEngagement("Node.js Contractor — B2B", [])).toBe("CONTRACT");
+    expect(detectEngagement("Part time TypeScript engineer", [])).toBe("PART_TIME");
+  });
+
+  it("prefers the more specific arrangement when several apply", () => {
+    expect(detectEngagement("Full-time contract developer", [])).toBe("CONTRACT");
+    expect(detectEngagement("Part-time freelance developer", ["Full-time"])).toBe("FREELANCE");
+  });
+
+  it("returns null when nothing explicit says so", () => {
+    expect(detectEngagement("Senior Software Engineer", ["react", "Remote"])).toBeNull();
+    expect(detectEngagement("Smart Contracts Engineer", [])).toBeNull();
+    expect(detectEngagement("Software Engineer", ["Permanent"])).toBeNull();
   });
 });

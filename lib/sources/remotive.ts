@@ -18,6 +18,16 @@ interface RemotiveJob {
   description: string;
 }
 
+// Remotive's job_type ("full_time" | "contract" | "part_time" | "freelance" |
+// "internship") becomes a tag so the engagement is detectable downstream.
+const JOB_TYPE_TAGS: Record<string, string> = {
+  full_time: "Full-time",
+  part_time: "Part-time",
+  contract: "Contract",
+  freelance: "Freelance",
+  internship: "Internship",
+};
+
 interface RemotiveResponse {
   jobs?: RemotiveJob[];
 }
@@ -42,7 +52,10 @@ export const remotiveSource: JobSource = {
       location: j.candidate_required_location?.trim() || null,
       remote: true,
       salary: j.salary?.trim() || null,
-      tags: Array.isArray(j.tags) ? j.tags : [],
+      tags: [
+        ...(Array.isArray(j.tags) ? j.tags : []),
+        ...(j.job_type && JOB_TYPE_TAGS[j.job_type] ? [JOB_TYPE_TAGS[j.job_type]] : []),
+      ],
       sourceUrl: j.url,
       // publication_date has no timezone; Remotive serves UTC, so pin it to UTC.
       postedAt: j.publication_date

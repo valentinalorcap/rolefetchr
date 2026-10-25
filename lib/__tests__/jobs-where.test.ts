@@ -155,3 +155,20 @@ describe("buildWhere — drawer facets", () => {
     expect(where.AND).toHaveLength(3); // buckets + location + search
   });
 });
+
+describe("buildWhere — engagement", () => {
+  it("applies no clause when nothing is selected", () => {
+    expect(buildWhere(filters()).AND).toBeUndefined();
+  });
+
+  it("ORs declared buckets with the not-declared bucket", () => {
+    const where = buildWhere(filters({ engagement: "contract,FREELANCE,none" }));
+    expect(where.AND).toEqual([
+      { OR: [{ engagement: { in: ["CONTRACT", "FREELANCE"] } }, { engagement: null }] },
+    ]);
+  });
+
+  it("ignores unknown values", () => {
+    expect(parseJobFilters({ engagement: "GIG,part_time" }).engagements).toEqual(["PART_TIME"]);
+  });
+});

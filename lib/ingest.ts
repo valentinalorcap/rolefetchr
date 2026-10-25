@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sources, type JobSource } from "@/lib/sources";
 import { isIrrelevant } from "@/lib/relevance-filter";
 import { getMutedKeys } from "@/lib/muted-sources";
-import { companyKey, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
+import { companyKey, detectEngagement, detectWorkMode, extractTechs, jobFingerprint, normalizeCountry, normalizeRegion } from "@/lib/normalize";
 
 export interface IngestResult {
   source: string;
@@ -37,6 +37,7 @@ export async function ingestSource(src: JobSource): Promise<IngestResult> {
         techs: extractTechs(j.title, j.tags, j.description),
         companyKey: companyKey(j.company),
         workMode: detectWorkMode(j.location, j.title, j.tags, j.remote),
+        engagement: detectEngagement(j.title, j.tags),
         fingerprint: jobFingerprint(j.title, j.company),
       }));
 

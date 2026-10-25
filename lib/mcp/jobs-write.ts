@@ -1,10 +1,13 @@
 import { z } from "zod";
-import { ActionStatus, Prisma, Source, WorkMode } from "@prisma/client";
+import { ActionStatus, Engagement, Prisma, Source, WorkMode } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { addManualJob, describeAddResult, type AddJobResult } from "@/lib/manual-ingest";
 import { fetchJobDescription } from "@/lib/description-fetch";
 import { isLeadDescription, isLowInformation, stripHtml } from "@/lib/format";
 import { DESCRIPTION_GUIDANCE, err, text, type McpServer } from "@/lib/mcp/shared";
+
+const ENGAGEMENT_GUIDANCE =
+  "The engagement the posting DECLARES: FULL_TIME, PART_TIME, CONTRACT (contractor/B2B/fixed-term) or FREELANCE (project-based). Set it only when the posting states it; leave it out when unclear — it must never be assumed. When omitted it's read from explicit title/tag signals only.";
 
 function addResultLines(title: string, r: AddJobResult): string[] {
   if (r.muted) return [`Skipped "${title}" — the publisher is muted (repost bot). See list_muted; use unmute_source to allow it.`];
@@ -64,6 +67,11 @@ export function registerJobWriteTools(server: McpServer) {
           .describe(
             "How the role is worked: REMOTE (default), HYBRID, or ONSITE. Set it explicitly when the posting says so; HYBRID/ONSITE jobs get a distinct badge in the UI. When omitted it's detected from location/title/tags.",
           ),
+        engagement: z
+          .nativeEnum(Engagement)
+          .nullable()
+          .optional()
+          .describe(ENGAGEMENT_GUIDANCE),
       },
     },
     async (input) => {
@@ -97,6 +105,7 @@ export function registerJobWriteTools(server: McpServer) {
               postedAt: z.string().optional(),
               source: z.nativeEnum(Source).optional(),
               workMode: z.nativeEnum(WorkMode).optional(),
+              engagement: z.nativeEnum(Engagement).nullable().optional().describe(ENGAGEMENT_GUIDANCE),
             }),
           )
           .min(1)
@@ -156,6 +165,11 @@ export function registerJobWriteTools(server: McpServer) {
           .describe("The catalogued source (affects the Sources sidebar)."),
         url: z.string().url().optional().describe("The posting URL (sourceUrl)."),
         postedAt: z.string().optional().describe("ISO date the job was posted."),
+        engagement: z
+          .nativeEnum(Engagement)
+          .nullable()
+          .optional()
+          .describe(`${ENGAGEMENT_GUIDANCE} Pass null to clear a wrong value.`),
       },
     },
     async ({ id, platform, url, postedAt, ...rest }) => {

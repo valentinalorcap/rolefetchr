@@ -28,6 +28,10 @@ model Job {
   // default; HYBRID/ONSITE mark roles tied to an office (detected at ingestion
   // or set explicitly via MCP) and get a distinct badge in the UI.
   workMode    WorkMode @default(REMOTE)
+  // The engagement the posting declares (full-time employment, part-time,
+  // contract, or freelance/project work). Null when the posting doesn't say —
+  // it is only ever set from an explicit signal, never assumed.
+  engagement  Engagement?
   salary      String?
   tags        String[]
   sourceUrl   String
@@ -68,6 +72,7 @@ model Job {
   @@index([country])
   @@index([companyKey])
   @@index([fingerprint])
+  @@index([engagement])
 }
 
 model JobScore {
@@ -185,6 +190,13 @@ enum WorkMode {
   REMOTE
   HYBRID
   ONSITE
+}
+
+enum Engagement {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
 }
 
 enum ActionStatus {

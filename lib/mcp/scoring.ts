@@ -1,10 +1,13 @@
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
+import { Engagement, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCvText, getScoringConfig, updateScoringConfig } from "@/lib/cv-context";
 import { stripHtml } from "@/lib/format";
 import { getMutedKeys } from "@/lib/muted-sources";
 import { err, json, text, type McpServer } from "@/lib/mcp/shared";
+
+const ENGAGEMENT_SCORING_GUIDANCE =
+  "Optional: the engagement the posting DECLARES (FULL_TIME, PART_TIME, CONTRACT, FREELANCE), read from the full posting while scoring. Set it only when stated; omit when unclear (never assume). Pass null to clear a wrong value.";
 
 export function registerScoringTools(server: McpServer) {
   server.registerTool(
@@ -63,6 +66,7 @@ export function registerScoringTools(server: McpServer) {
               fingerprint: true,
               location: true,
               workMode: true,
+              engagement: true,
               score: { select: { score: true, eligible: true } },
             },
           })
@@ -84,12 +88,14 @@ export function registerScoringTools(server: McpServer) {
           url: j.sourceUrl,
           postedAt: j.postedAt.toISOString(),
           workMode: j.workMode,
+          engagement: j.engagement,
           fingerprint: j.fingerprint,
           scoredDuplicate: sibling
             ? {
                 jobId: sibling.id,
                 location: sibling.location,
                 workMode: sibling.workMode,
+                engagement: sibling.engagement,
                 score: sibling.score?.score,
                 eligible: sibling.score?.eligible,
               }
@@ -122,9 +128,14 @@ export function registerScoringTools(server: McpServer) {
           .string()
           .optional()
           .describe('Label for who scored it; defaults to "agent".'),
+        engagement: z
+          .nativeEnum(Engagement)
+          .nullable()
+          .optional()
+          .describe(ENGAGEMENT_SCORING_GUIDANCE),
       },
     },
-    async ({ jobId, score, eligible, reasoning, matchedSkills = [], gaps = [], model = "agent" }) => {
+    async ({ jobId, score, eligible, reasoning, matchedSkills = [], gaps = [], model = "agent", engagement }) => {
       const job = await prisma.job.findUnique({ where: { id: jobId }, select: { id: true, title: true } });
       if (!job) return err(`No job with id ${jobId}.`);
       await prisma.jobScore.upsert({
@@ -132,6 +143,7 @@ export function registerScoringTools(server: McpServer) {
         create: { jobId, score, eligible, reasoning, matchedSkills, gaps, model },
         update: { score, eligible, reasoning, matchedSkills, gaps, model, evaluatedAt: new Date() },
       });
+      if (engagement !== undefined) await prisma.job.update({ where: { id: jobId }, data: { engagement } });
       return text(
         `Scored "${job.title}" ${score}/100${eligible ? "" : " (not eligible)"}. [${jobId}]`,
       );
@@ -154,6 +166,7 @@ export function registerScoringTools(server: McpServer) {
               reasoning: z.string(),
               matchedSkills: z.array(z.string()).optional(),
               gaps: z.array(z.string()).optional(),
+              engagement: z.nativeEnum(Engagement).nullable().optional().describe(ENGAGEMENT_SCORING_GUIDANCE),
             }),
           )
           .min(1)
@@ -190,6 +203,8 @@ export function registerScoringTools(server: McpServer) {
           create: { jobId: s.jobId, ...data },
           update: { ...data, evaluatedAt: new Date() },
         });
+        if (s.engagement !== undefined)
+          await prisma.job.update({ where: { id: s.jobId }, data: { engagement: s.engagement } });
         written++;
         if (!s.eligible) notEligible++;
       }

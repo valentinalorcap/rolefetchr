@@ -1,4 +1,4 @@
-import { ActionStatus, Prisma, Source } from "@prisma/client";
+import { ActionStatus, Engagement, Prisma, Source } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { searchTerms } from "@/lib/normalize";
 
@@ -42,6 +42,10 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 export const STATUS_KEYS = ["NONE", "SAVED", "APPLIED", "NOT_INTERESTED"] as const;
 export type StatusKey = (typeof STATUS_KEYS)[number];
 
+// Engagement buckets: the four declared arrangements plus "NONE" (not declared).
+export const ENGAGEMENT_KEYS = ["FULL_TIME", "PART_TIME", "CONTRACT", "FREELANCE", "NONE"] as const;
+export type EngagementKey = (typeof ENGAGEMENT_KEYS)[number];
+
 export interface JobFilters {
   sources: Source[];
   keyword: string | null;
@@ -59,6 +63,8 @@ export interface JobFilters {
   regions: string[]; // Region values, plus "Unspecified" (= region IS NULL)
   countries: string[];
   techs: string[];
+  // Engagement buckets to show (multi-select, OR-ed). [] = no filter.
+  engagements: EngagementKey[];
   sort: SortKey;
   take: number;
 }
@@ -137,6 +143,9 @@ export function parseJobFilters(params: RawParams): JobFilters {
     regions: csv(first(params.region)),
     countries: csv(first(params.country)),
     techs: csv(first(params.tech)).map((t) => t.toLowerCase()),
+    engagements: ENGAGEMENT_KEYS.filter((k) =>
+      csv(first(params.engagement)).map((e) => e.toUpperCase()).includes(k),
+    ),
     sort: sort && SORT_KEYS.has(sort as SortKey) ? (sort as SortKey) : "score",
     take: Number.isFinite(take) && take > 0 ? take : PAGE_SIZE,
   };
@@ -195,6 +204,15 @@ export function buildWhere(filters: JobFilters): Prisma.JobWhereInput {
   if (filters.companies.length > 0)
     where.companyKey = { in: filters.companies };
   if (filters.techs.length > 0) where.techs = { hasSome: filters.techs };
+
+  // Engagement: declared buckets match the column; NONE matches undeclared.
+  if (filters.engagements.length > 0) {
+    const or: Prisma.JobWhereInput[] = [];
+    const declared = filters.engagements.filter((e): e is Engagement => e !== "NONE");
+    if (declared.length > 0) or.push({ engagement: { in: declared } });
+    if (filters.engagements.includes("NONE")) or.push({ engagement: null });
+    and.push({ OR: or });
+  }
 
   // Location: a selected region matches its whole bucket, a selected country
   // matches exactly; the two OR together ("Europe" + "Chile" is valid).
@@ -320,4 +338,9 @@ export function getJobById(id: string, demoCode: string | null) {
  * (default 50+) comes from the filter bar's minScore so it stays adjustable. */
 export const BEST_MATCHES_BASE: Prisma.JobWhereInput = {
   score: { is: { eligible: true } },
+};
+
+/** Freelance & contract: postings that declare independent or part-time work. */
+export const FREELANCE_BASE: Prisma.JobWhereInput = {
+  engagement: { in: [Engagement.PART_TIME, Engagement.CONTRACT, Engagement.FREELANCE] },
 };

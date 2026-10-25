@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Facets } from "@/lib/facets";
 import {
+  ENGAGEMENT_KEYS,
   MAX_FRESH_DAYS,
   STATUS_KEYS,
+  type EngagementKey,
   type JobFilters as Filters,
   type StatusKey,
 } from "@/lib/jobs";
@@ -27,6 +29,14 @@ export const STATUS_LABELS: Record<StatusKey, string> = {
   NOT_INTERESTED: "Archived",
 };
 
+const ENGAGEMENT_LABELS: Record<EngagementKey, string> = {
+  FULL_TIME: "Full-time",
+  PART_TIME: "Part-time",
+  CONTRACT: "Contract",
+  FREELANCE: "Freelance",
+  NONE: "Not declared",
+};
+
 // What the tab itself defaults to (parsed from the page's default params), so
 // the drawer and chips can tell "tab baseline" from "user-applied filter".
 export interface FilterBaseline {
@@ -46,6 +56,7 @@ interface Selection {
   regions: string[];
   countries: string[];
   techs: string[];
+  engagements: EngagementKey[]; // [] = any
 }
 
 const SCORE_OPTIONS: Array<[string, string]> = [
@@ -85,6 +96,7 @@ function fromFilters(filters: Filters): Selection {
     regions: filters.regions,
     countries: filters.countries,
     techs: filters.techs,
+    engagements: [...filters.engagements],
   };
 }
 
@@ -118,6 +130,7 @@ function toParams(
   set("region", sel.regions.join(","));
   set("country", sel.countries.join(","));
   set("tech", sel.techs.join(","));
+  set("engagement", ENGAGEMENT_KEYS.filter((k) => sel.engagements.includes(k)).join(","));
   delete next.take;
   return next;
 }
@@ -161,6 +174,7 @@ export function FiltersDrawer({
   action,
   statusAction,
   hideIngested = false,
+  hideEngagement = false,
   companyLabel,
 }: {
   facets: Facets;
@@ -172,6 +186,8 @@ export function FiltersDrawer({
   // point this at /jobs — picking other buckets means "browse").
   statusAction?: string;
   hideIngested?: boolean;
+  // The engagement group is the owner's track; demo spaces don't see it.
+  hideEngagement?: boolean;
   // In a demo, the MANUAL source is the company's own board — label it so.
   companyLabel?: string;
 }) {
@@ -187,6 +203,7 @@ export function FiltersDrawer({
     company: false,
     source: false,
     tech: false,
+    engagement: false,
     eligible: false,
   });
   const [companyQuery, setCompanyQuery] = useState("");
@@ -266,6 +283,7 @@ export function FiltersDrawer({
       regions: [],
       countries: [],
       techs: [],
+      engagements: [],
     });
   }
 
@@ -516,6 +534,17 @@ export function FiltersDrawer({
             </div>
           ) : null}
 
+          {hideEngagement ? null : groupHeader("engagement", "Engagement", sel.engagements.length)}
+          {groups.engagement && !hideEngagement ? (
+            <div className="flex flex-wrap gap-1.5 pb-3 pt-0.5">
+              {ENGAGEMENT_KEYS.map((key) =>
+                pill(ENGAGEMENT_LABELS[key], sel.engagements.includes(key), () =>
+                  setSel((s) => ({ ...s, engagements: toggle(s.engagements, key) as EngagementKey[] })),
+                ),
+              )}
+            </div>
+          ) : null}
+
           {groupHeader("eligible", "Eligibility", sel.eligible ? 1 : 0)}
           {groups.eligible ? (
             <div className="flex flex-wrap gap-1.5 pb-3 pt-0.5">
@@ -564,7 +593,8 @@ function countSelections(sel: Selection, baseline: FilterBaseline): number {
     sel.companies.length +
     sel.regions.length +
     sel.countries.length +
-    sel.techs.length
+    sel.techs.length +
+    sel.engagements.length
   );
 }
 
@@ -575,6 +605,7 @@ export function FilterChips({
   baseline,
   params,
   action,
+  hideEngagement = false,
   companyLabel,
 }: {
   facets: Facets;
@@ -582,6 +613,7 @@ export function FilterChips({
   baseline: FilterBaseline;
   params: Record<string, string>;
   action: string;
+  hideEngagement?: boolean;
   companyLabel?: string;
 }) {
   const router = useRouter();
@@ -639,6 +671,9 @@ export function FilterChips({
     chips.push({ param: "country", value: c, label: c });
   for (const t of filters.techs)
     chips.push({ param: "tech", value: t, label: t });
+  if (!hideEngagement)
+    for (const e of filters.engagements)
+      chips.push({ param: "engagement", value: e, label: ENGAGEMENT_LABELS[e] });
 
   if (chips.length === 0) return null;
 
@@ -661,7 +696,7 @@ export function FilterChips({
     for (const p of [
       "status", "minScore", "eligible", "source",
       "fresh", "ingested", "evaluated",
-      "company", "region", "country", "tech",
+      "company", "region", "country", "tech", "engagement",
     ])
       delete next[p];
     pushUrl(router, action, next, startTransition);

@@ -87,6 +87,7 @@ describe("remotiveSource", () => {
           title: " Frontend Engineer ",
           company_name: "Northwind",
           tags: ["vue"],
+          job_type: "contract",
           publication_date: "2026-08-01T12:00:00",
           candidate_required_location: " Europe ",
           salary: "",
@@ -104,6 +105,7 @@ describe("remotiveSource", () => {
       company: "Northwind",
       location: "Europe",
       salary: null,
+      tags: ["vue", "Contract"],
       sourceUrl: "https://remotive.com/jobs/42",
     });
     expect(jobs[0].postedAt.toISOString()).toBe("2026-08-01T12:00:00.000Z");

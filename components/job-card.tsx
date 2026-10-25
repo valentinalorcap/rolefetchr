@@ -3,6 +3,7 @@ import { ScoreBadge } from "@/components/score-badge";
 import { SourceIcon } from "@/components/source-icon";
 import { JobActions } from "@/components/job-actions";
 import { WorkModeBadge } from "@/components/work-mode-badge";
+import { EngagementBadge } from "@/components/engagement-badge";
 import type { JobWithRelations } from "@/lib/jobs";
 import { sourceMeta } from "@/lib/source-meta";
 import { relativeTime, isLeadDescription } from "@/lib/format";
@@ -29,6 +30,7 @@ export function JobCard({ job }: { job: JobWithRelations }) {
           </Link>
           <div className="mt-0.5 break-words text-sm text-muted-foreground">
             <WorkModeBadge mode={job.workMode} className="mr-1.5 align-[1px]" />
+            <EngagementBadge engagement={job.engagement} className="mr-1.5 align-[1px]" />
             {job.company}
             {job.location ? ` · ${job.location}` : ""}
             {job.salary ? ` · ${job.salary}` : ""}

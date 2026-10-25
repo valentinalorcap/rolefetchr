@@ -28,6 +28,7 @@ export function JobFilters({
   action = "/jobs",
   statusAction,
   hideIngested = false,
+  hideEngagement = false,
   companyLabel,
   facets,
 }: {
@@ -44,6 +45,8 @@ export function JobFilters({
   // Archived tabs point this at /jobs: picking other buckets means "browse".
   statusAction?: string;
   hideIngested?: boolean;
+  // Engagement (freelance/part-time/contract) is the owner's track; hidden in demos.
+  hideEngagement?: boolean;
   // In a demo, the MANUAL source is the company's own board — label it so.
   companyLabel?: string;
 }) {
@@ -120,6 +123,7 @@ export function JobFilters({
           action={action}
           statusAction={statusAction}
           hideIngested={hideIngested}
+          hideEngagement={hideEngagement}
           companyLabel={companyLabel}
         />
       </div>
@@ -129,6 +133,7 @@ export function JobFilters({
         baseline={baseline}
         params={params}
         action={action}
+        hideEngagement={hideEngagement}
         companyLabel={companyLabel}
       />
     </div>
